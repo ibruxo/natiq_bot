@@ -12,7 +12,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: silence0ne/natiq-bot
+  IMAGE_NAME: natiq-foundation/natiq-bot
 
 jobs:
   # ───────────────────────────────────────
