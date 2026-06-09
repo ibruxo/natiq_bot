@@ -19,6 +19,7 @@ class Config:
     SCHEDULE_HOUR: int = int(os.getenv("SCHEDULE_HOUR", "3"))
     SCHEDULE_MINUTE: int = int(os.getenv("SCHEDULE_MINUTE", "0"))
     SCHEDULE_TIMEZONE: str = os.getenv("SCHEDULE_TIMEZONE", "Asia/Riyadh")
+
     
     # Recipients
     @staticmethod
@@ -52,3 +53,6 @@ class Config:
     @classmethod
     def get_bale_full_api_url(cls) -> str:
         return f"{cls.BALE_API_URL}/bot{cls.BALE_BOT_TOKEN}"
+
+    # Channel ID for reference at the end of the message
+    CHANNEL_ID: str = os.getenv("CHANNEL_ID", "")
