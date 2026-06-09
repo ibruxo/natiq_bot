@@ -8,6 +8,10 @@ class Config:
     # Bot
     BALE_BOT_TOKEN: str = os.getenv("BALE_BOT_TOKEN", "")
     BALE_API_URL: str = os.getenv("BALE_API_URL", "https://tapi.bale.ai")
+
+    # Debug Mode
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    DEBUG_VERSE_LIMIT: int = int(os.getenv("DEBUG_VERSE_LIMIT", "200"))
     
     # Quran API
     QURAN_API_URL: str = os.getenv("QURAN_API_URL", "http://localhost")
