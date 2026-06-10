@@ -62,7 +62,8 @@ class BaleBot:
     def send_keyboard(self, chat_id: int, text: str):
         reply_markup = {
             "keyboard": [
-                [{"text": "📖 ارسال آیه تصادفی"}]
+                [{"text": "📖 ارسال آیه تصادفی"}],
+                [{"text": "📚 راهنمای اضافه کردن به کانال"}]
             ],
             "resize_keyboard": True,
             "one_time_keyboard": False
@@ -87,7 +88,7 @@ class BaleBot:
             elif text in ['/random', 'آیه تصادفی', '📖 ارسال آیه تصادفی']:
                 self._handle_random(chat_id, cache)
             
-            elif text in ['/help', 'راهنما']:
+            elif text in ['/help', 'راهنما', '📚 راهنمای اضافه کردن به کانال']:
                 self._handle_help(chat_id)
             
             elif text in ['/schedule', 'زمان']:
@@ -127,7 +128,7 @@ class BaleBot:
             "➖ برات همینجا آيه تصادفی ارسال میشه\n\n"
             "📘 *دستورات (قابل تایپ)*\n"
             "• *(آیه تصادفی)* یا *(📖 ارسال آیه تصادفی)* →  دریافت آیه تصادفی\n"
-            "• */schedule* یا *(زمان ارسال خودکار)* → مشاهده زمان ارسال روزانه\n"
+            "• /schedule یا *(زمان ارسال خودکار)* → مشاهده زمان ارسال روزانه\n"
             "• */help* یا *(راهنما)* → نمایش همین پیام"
         )
         self.send_message(chat_id, text)
