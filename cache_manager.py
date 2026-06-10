@@ -44,7 +44,7 @@ class CacheManager:
             
             self.verse_to_surah[verse['uuid']] = current_surah
         
-        print(f"   ✓ {len(self.verses)} The verse was deleted")
+        print(f"   ✓ {len(self.verses)} The verse was cached")
     
     def _load_translations(self):
         print("📥 Get translations...")

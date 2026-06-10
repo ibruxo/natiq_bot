@@ -20,11 +20,17 @@ class Config:
     PAGE_SIZE: int = int(os.getenv("PAGE_SIZE", "-1"))
     
     # Scheduler
-    SCHEDULE_HOUR: int = int(os.getenv("SCHEDULE_HOUR", "3"))
-    SCHEDULE_MINUTE: int = int(os.getenv("SCHEDULE_MINUTE", "0"))
+    # Time Settings For (Channel and Group)
+    SCHEDULE_PUBLIC_HOUR: int = int(os.getenv("SCHEDULE_PUBLIC_HOUR", "12"))
+    SCHEDULE_PUBLIC_MINUTE: int = int(os.getenv("SCHEDULE_PUBLIC_MINUTE", "0"))
+
+    # Time Settings For (Users)
+    SCHEDULE_USER_HOUR: int = int(os.getenv("SCHEDULE_USER_HOUR", "3"))
+    SCHEDULE_USER_MINUTE: int = int(os.getenv("SCHEDULE_USER_MINUTE", "0"))
+
+    # Time Zone For All Type
     SCHEDULE_TIMEZONE: str = os.getenv("SCHEDULE_TIMEZONE", "Asia/Riyadh")
 
-    
     # Recipients
     @staticmethod
     def _parse_ids(env_var: str) -> List[int]:
