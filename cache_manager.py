@@ -92,7 +92,7 @@ class CacheManager:
         else:
             period_icon = "📖"
 
-        channel_id = Config.CHANNEL_ID
+        channel_id = Config.BOT_ID
         channel_footer = f"@{channel_id}" if channel_id else ""
         
         message = (
