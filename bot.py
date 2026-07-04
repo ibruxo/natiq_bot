@@ -2,7 +2,6 @@ import time
 import logging
 import requests
 from config import Config
-from cache_manager import CacheManager
 from scheduler import MessageScheduler
 
 logging.basicConfig(

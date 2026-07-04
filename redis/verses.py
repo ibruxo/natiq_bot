@@ -1,24 +1,31 @@
-import redis
+import random
 from typing import Optional, Dict
+from redis.client import redis_client
 
-class VerseRedis:
-    def __init__(self, client: redis.Redis):
-        self.r = client
 
-    def key(self, uuid: str) -> str:
-        return f"verse:{uuid}"
+class VerseStore:
+    PREFIX = "verse:"
+    INDEX_KEY = "verses:all"
 
     def save(self, uuid: str, data: Dict):
-        self.r.hset(self.key(uuid), mapping=data)
+        key = self.PREFIX + uuid
 
-    def get(self, uuid: str) -> Optional[dict]:
-        data = self.r.hgetall(self.key(uuid))
+        redis_client.hset(key, mapping=data)
+        redis_client.sadd(self.INDEX_KEY, uuid)
+
+    def get(self, uuid: str) -> Optional[Dict]:
+        key = self.PREFIX + uuid
+        data = redis_client.hgetall(key)
+
         if not data:
             return None
-        return {k.decode(): v.decode() for k, v in data.items()}
 
-    def delete(self, uuid: str):
-        self.r.delete(self.key(uuid))
+        return data
 
-    def exists(self, uuid: str) -> bool:
-        return self.r.exists(self.key(uuid)) == 1
+    def random(self) -> Optional[Dict]:
+        uuid = redis_client.srandmember(self.INDEX_KEY)
+
+        if not uuid:
+            return None
+
+        return self.get(uuid)
