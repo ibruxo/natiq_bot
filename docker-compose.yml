@@ -1,26 +1,48 @@
 services:
-  natiq-bot:
-    image: natiqquran/bot:latest
-    container_name: natiq-bot
+  postgres:
+    image: postgres:16
+
+    container_name: natiq-postgres
+
     restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: natiq
+      POSTGRES_PASSWORD: natiq
+      POSTGRES_DB: natiq_bot
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+
+    container_name: natiq-redis
+
+    restart: unless-stopped
+
+    ports:
+      - "6379:6379"
+
+  bot:
+    build: .
+
+    container_name: natiq-bot
+
+    depends_on:
+      - postgres
+      - redis
+
     env_file:
       - .env
 
     volumes:
-      - bot-logs:/app/logs
+      - .:/app
 
-    healthcheck:
-      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    command: python bot.py
 
 volumes:
-  bot-logs:
+  postgres-data:

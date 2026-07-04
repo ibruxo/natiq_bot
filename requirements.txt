@@ -2,9 +2,8 @@ python-telegram-bot==20.7
 python-dotenv>=1.0.0
 requests>=2.28.0
 APScheduler>=3.10.0
-psycopg2
-datetime
-config
-django
-django-extensions
-sqlalchemy
+
+SQLAlchemy>=2.0
+psycopg[binary]>=3.2
+redis>=5.0
+alembic>=1.14

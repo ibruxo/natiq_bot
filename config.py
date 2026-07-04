@@ -66,3 +66,9 @@ class Config:
 
     # BOT ID for reference at the end of the message
     BOT_ID: str = os.getenv("BOT_ID", "")
+
+    # Database
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+
+    # Redis
+    REDIS_URL: str = os.getenv("REDIS_URL", "")

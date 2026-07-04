@@ -6,6 +6,7 @@ from config import Config
 engine = create_engine(
     Config.DATABASE_URL,
     pool_pre_ping=True,
+    echo=True,
     future=True,
 )
 
