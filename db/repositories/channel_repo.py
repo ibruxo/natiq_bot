@@ -6,18 +6,18 @@ from sqlalchemy.orm import Session
 from db.models.channel import Channel
 
 
-def get_by_bale_id(session: Session, bale_chat_id: int) -> Optional[Channel]:
-    stmt = select(Channel).where(Channel.bale_chat_id == bale_chat_id)
+def get_by_id(session: Session, chat_id: int) -> Optional[Channel]:
+    stmt = select(Channel).where(Channel.chat_id == chat_id)
     return session.scalar(stmt)
 
 
 def get_or_create(
     session: Session,
-    bale_chat_id: int,
+    chat_id: int,
     title: Optional[str] = None,
     username: Optional[str] = None,
 ) -> Channel:
-    channel = get_by_bale_id(session, bale_chat_id)
+    channel = ch_id(session, chat_id)
 
     if channel:
         if title is not None:
@@ -27,20 +27,20 @@ def get_or_create(
         channel.is_active = True
         return channel
 
-    channel = Channel(bale_chat_id=bale_chat_id, title=title, username=username)
+    channel = Channel(chat_id=chat_id, title=title, username=username)
     session.add(channel)
     session.flush()
     return channel
 
 
-def deactivate(session: Session, bale_chat_id: int) -> None:
-    channel = get_by_bale_id(session, bale_chat_id)
+def deactivate(session: Session, chat_id: int) -> None:
+    channel = get_by_id(session, chat_id)
     if channel:
         channel.is_active = False
 
 
 def list_active_ids(session: Session) -> list[int]:
-    stmt = select(Channel.bale_chat_id).where(Channel.is_active.is_(True))
+    stmt = select(Channel.chat_id).where(Channel.is_active.is_(True))
     return list(session.scalars(stmt))
 
 

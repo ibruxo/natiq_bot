@@ -6,18 +6,18 @@ from sqlalchemy.orm import Session
 from db.models.user import User
 
 
-def get_by_bale_id(session: Session, bale_user_id: int) -> Optional[User]:
-    stmt = select(User).where(User.bale_user_id == bale_user_id)
+def get_by_id(session: Session, user_id: int) -> Optional[User]:
+    stmt = select(User).where(User.user_id == user_id)
     return session.scalar(stmt)
 
 
 def get_or_create(
     session: Session,
-    bale_user_id: int,
+    user_id: int,
     username: Optional[str] = None,
     first_name: Optional[str] = None,
 ) -> User:
-    user = get_by_bale_id(session, bale_user_id)
+    user = get_by_id(session, user_id)
 
     if user:
         # Keep profile info fresh.
@@ -28,7 +28,7 @@ def get_or_create(
         return user
 
     user = User(
-        bale_user_id=bale_user_id,
+        user_id=user_id,
         username=username,
         first_name=first_name,
     )
@@ -37,20 +37,20 @@ def get_or_create(
     return user
 
 
-def set_admin(session: Session, bale_user_id: int, is_admin: bool = True) -> Optional[User]:
-    user = get_by_bale_id(session, bale_user_id)
+def set_admin(session: Session, user_id: int, is_admin: bool = True) -> Optional[User]:
+    user = get_by_id(session, user_id)
     if user:
         user.is_admin = is_admin
     return user
 
 
-def is_admin(session: Session, bale_user_id: int) -> bool:
-    user = get_by_bale_id(session, bale_user_id)
+def is_admin(session: Session, user_id: int) -> bool:
+    user = get_by_id(session, user_id)
     return bool(user and user.is_admin)
 
 
 def list_active_ids(session: Session) -> list[int]:
-    stmt = select(User.bale_user_id).where(User.is_active.is_(True))
+    stmt = select(User._user_id).where(User.is_active.is_(True))
     return list(session.scalars(stmt))
 
 

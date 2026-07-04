@@ -23,26 +23,26 @@ def register_incoming_message(chat: dict) -> None:
         if chat_type == "private":
             user_repo.get_or_create(
                 session,
-                bale_user_id=chat_id,
+                user_id=chat_id,
                 username=chat.get("username"),
                 first_name=chat.get("first_name"),
             )
         elif chat_type in ("group", "supergroup"):
-            group_repo.get_or_create(session, bale_chat_id=chat_id, title=chat.get("title"))
+            group_repo.get_or_create(session, chat_id=chat_id, title=chat.get("title"))
         elif chat_type == "channel":
             channel_repo.get_or_create(
                 session,
-                bale_chat_id=chat_id,
+                chat_id=chat_id,
                 title=chat.get("title"),
                 username=chat.get("username"),
             )
 
 
-def is_admin(bale_user_id: int) -> bool:
+def is_admin(user_id: int) -> bool:
     """A user is an admin if they're flagged in the DB or listed in
     ADMIN_USER_IDS (which is applied on startup, see bootstrap_admins)."""
     with get_session() as session:
-        return user_repo.is_admin(session, bale_user_id)
+        return user_repo.is_admin(session, user_id)
 
 
 def bootstrap_admins() -> None:
@@ -53,7 +53,7 @@ def bootstrap_admins() -> None:
 
     with get_session() as session:
         for admin_id in admin_ids:
-            user = user_repo.get_or_create(session, bale_user_id=admin_id)
+            user = user_repo.get_or_create(session, user_id=admin_id)
             user.is_admin = True
 
 
@@ -65,13 +65,13 @@ def seed_static_recipients() -> None:
     """
     with get_session() as session:
         for channel_id in Config.get_seed_channel_ids():
-            channel_repo.get_or_create(session, bale_chat_id=channel_id)
+            channel_repo.get_or_create(session, chat_id=channel_id)
 
         for group_id in Config.get_seed_group_ids():
-            group_repo.get_or_create(session, bale_chat_id=group_id)
+            group_repo.get_or_create(session, chat_id=group_id)
 
         for user_id in Config.get_seed_user_ids():
-            user_repo.get_or_create(session, bale_user_id=user_id)
+            user_repo.get_or_create(session, user_id=user_id)
 
 
 def get_stats() -> dict:

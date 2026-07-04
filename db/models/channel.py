@@ -13,7 +13,7 @@ class Channel(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    bale_chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     username: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

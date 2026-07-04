@@ -10,8 +10,8 @@ class Config:
     # -------------------------
     # Bot (Bale)
     # -------------------------
-    BALE_BOT_TOKEN: str = os.getenv("BALE_BOT_TOKEN", "")
-    BALE_API_URL: str = os.getenv("BALE_API_URL", "https://tapi.bale.ai")
+    BOT_TOKEN: str = os.getenv("BALE_BOT_TOKEN", "")
+    API_URL: str = os.getenv("BALE_API_URL", "https://tapi.bale.ai")
 
     # Reference id/name appended to outgoing messages
     BOT_ID: str = os.getenv("BOT_ID", "")

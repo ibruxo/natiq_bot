@@ -7,13 +7,13 @@ from db.base import Base
 
 
 class Group(Base):
-    """A Bale group the bot broadcasts the daily public verse to."""
+    """A Chat group the bot broadcasts the daily public verse to."""
 
     __tablename__ = "groups"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    bale_chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")

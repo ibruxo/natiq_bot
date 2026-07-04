@@ -20,7 +20,7 @@ def upgrade() -> None:
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("bale_user_id", sa.BigInteger(), nullable=False),
+        sa.Column("user_id", sa.BigInteger(), nullable=False),
         sa.Column("username", sa.String(length=255), nullable=True),
         sa.Column("first_name", sa.String(length=255), nullable=True),
         sa.Column("is_admin", sa.Boolean(), server_default="false", nullable=False),
@@ -28,28 +28,28 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("last_seen_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
-    op.create_index("ix_users_bale_user_id", "users", ["bale_user_id"], unique=True)
+    op.create_index("ix_users_user_id", "users", ["user_id"], unique=True)
 
     op.create_table(
         "channels",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("bale_chat_id", sa.BigInteger(), nullable=False),
+        sa.Column("chat_id", sa.BigInteger(), nullable=False),
         sa.Column("title", sa.String(length=255), nullable=True),
         sa.Column("username", sa.String(length=255), nullable=True),
         sa.Column("is_active", sa.Boolean(), server_default="true", nullable=False),
         sa.Column("added_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
-    op.create_index("ix_channels_bale_chat_id", "channels", ["bale_chat_id"], unique=True)
+    op.create_index("ix_channels_chat_id", "channels", ["chat_id"], unique=True)
 
     op.create_table(
         "groups",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("bale_chat_id", sa.BigInteger(), nullable=False),
+        sa.Column("chat_id", sa.BigInteger(), nullable=False),
         sa.Column("title", sa.String(length=255), nullable=True),
         sa.Column("is_active", sa.Boolean(), server_default="true", nullable=False),
         sa.Column("added_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
-    op.create_index("ix_groups_bale_chat_id", "groups", ["bale_chat_id"], unique=True)
+    op.create_index("ix_groups_chat_id", "groups", ["chat_id"], unique=True)
 
     op.create_table(
         "verses",
@@ -100,9 +100,9 @@ def downgrade() -> None:
     op.drop_table("sent_messages")
     op.drop_index("ix_verses_external_id", table_name="verses")
     op.drop_table("verses")
-    op.drop_index("ix_groups_bale_chat_id", table_name="groups")
+    op.drop_index("ix_groups_chat_id", table_name="groups")
     op.drop_table("groups")
-    op.drop_index("ix_channels_bale_chat_id", table_name="channels")
+    op.drop_index("ix_channels_chat_id", table_name="channels")
     op.drop_table("channels")
-    op.drop_index("ix_users_bale_user_id", table_name="users")
+    op.drop_index("ix_users_user_id", table_name="users")
     op.drop_table("users")

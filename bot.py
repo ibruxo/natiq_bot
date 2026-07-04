@@ -21,9 +21,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class BaleBot:
+class Bot:
     def __init__(self, verse_service: VerseService, rate_limiter: RateLimiter):
-        self.api_url = Config.get_bale_full_api_url()
+        self.api_url = Config.get_full_api_url()
         self.offset = 0
         self.verse_service = verse_service
         self.rate_limiter = rate_limiter
@@ -219,7 +219,7 @@ def main():
         except Exception as e:
             logger.error(f"Startup verse ingestion failed: {e}")
 
-    bot = BaleBot(verse_service, rate_limiter)
+    bot = Bot(verse_service, rate_limiter)
 
     scheduler = MessageScheduler(bot, verse_service, ingestion_service)
     scheduler.start()
