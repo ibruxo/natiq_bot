@@ -1,6 +1,6 @@
 # 📖 Natiq Quran Bot
 
-A Bale Messenger bot that delivers random verses from the Holy Quran together with Persian translations.
+A Multi Messenger bot that delivers random verses from the Holy Quran together with Persian translations.
 
 The bot supports:
 
