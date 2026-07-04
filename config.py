@@ -8,10 +8,10 @@ load_dotenv()
 
 class Config:
     # -------------------------
-    # Bot (Bale)
+    # Bot
     # -------------------------
-    BOT_TOKEN: str = os.getenv("BALE_BOT_TOKEN", "")
-    API_URL: str = os.getenv("BALE_API_URL", "https://tapi.bale.ai")
+    BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+    API_URL: str = os.getenv("API_URL", "https://tapi.bale.ai")
 
     # Reference id/name appended to outgoing messages
     BOT_ID: str = os.getenv("BOT_ID", "")
@@ -89,8 +89,8 @@ class Config:
     # Computed
     # -------------------------
     @classmethod
-    def get_bale_full_api_url(cls) -> str:
-        return f"{cls.BALE_API_URL}/bot{cls.BALE_BOT_TOKEN}"
+    def get_full_api_url(cls) -> str:
+        return f"{cls.API_URL}/bot{cls.BOT_TOKEN}"
 
     # -------------------------
     # Database
