@@ -4,15 +4,15 @@ A Bale Messenger bot that delivers random verses from the Holy Quran together wi
 
 The bot supports:
 
-* 📖 On-demand random Quran verses
-* ⏰ Scheduled daily verse delivery
-* 👤 Direct messages to users
-* 👥 Groups
-* 📢 Channels
-* 🗄 PostgreSQL persistence
-* ⚡ Redis caching and temporary state
-* 🧩 SQLAlchemy ORM
-* 🔄 Alembic database migrations
+* On-demand random Quran verses
+* Scheduled daily verse delivery
+* Direct messages to users
+* Groups
+* Channels
+* PostgreSQL persistence
+* Redis caching and temporary state
+* SQLAlchemy ORM
+* Alembic database migrations
 
 ---
 
