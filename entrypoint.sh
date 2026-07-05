@@ -1,8 +1,8 @@
 #!/bin/sh
-set -e
+set -eu
 
-echo "Running database migrations..."
+echo "Applying database migrations..."
 alembic upgrade head
 
-echo "Starting bot..."
+echo "Starting Natiq..."
 exec python bot.py
