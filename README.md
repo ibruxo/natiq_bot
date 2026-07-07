@@ -1,177 +1,353 @@
-# 📖 Natiq Quran Bot
+# 📖 Natiq Telegram Quran Bot
 
-A Bale bot that delivers Quran verses (Arabic + Persian translation) to
-users, groups, and channels — on demand and on a daily schedule.
+A Telegram bot that delivers Quran verses (Arabic + Persian translation) to users, groups, and channels — on demand and through scheduled broadcasts.
 
----
+Built with:
 
-## ⚠️ One thing to verify before running
-
-The verse ingestion client (`services/quran_api_client.py`) is built
-against the **documented endpoint names** of the Natiq Quran API
-(`/surahs/`, `/ayahs/`, `/ayah-translations/`), but I could not confirm
-the exact **response field names** — `api.natiq.ir`'s Swagger UI blocks
-automated fetching.
-
-The client already tries several likely field-name variants for each
-value it reads. If ingestion logs `"Skipped N ayah(s) missing required
-fields"` or comes back empty:
-
-1. Open `https://api.natiq.ir/api/schema/swagger-ui/` in your browser
-2. Try `GET /ayahs/` and `GET /ayah-translations/`, look at one real item
-3. Update the candidate key names in the `_pick(...)` calls in
-   `services/quran_api_client.py` — that's the only file this affects
+* Python 3.11+
+* Telegram Bot API
+* PostgreSQL
+* Redis
+* SQLAlchemy 2.x
+* Alembic
+* Docker Compose
 
 ---
 
-## Supported platforms
+# ✨ Features
 
-| Platform | Sending | Receiving commands | Notes |
-|---|---|---|---|
-| Bale | ✅ | ✅ (long polling) | Telegram-compatible API |
-| Telegram | ✅ | ✅ (long polling) | Same API shape as Bale |
-| Rubika | ✅ | ✅ (long polling) | See caveat below |
-| Eitaa | ✅ | ❌ | Eitaayar's public bot API is send-only — no inbound updates mechanism is documented for it, so Eitaa only ever receives scheduled broadcasts, never replies to `/random` etc. |
+## Quran
 
-Turn platforms on/off with `ENABLED_PLATFORMS` in `.env` (comma-separated), and set the matching `*_BOT_TOKEN`. A platform with no token is skipped with a warning at startup.
+* Random Quran verse command
+* Arabic text
+* Persian translation
+* Redis-powered verse caching
+* Automatic verse ingestion from Natiq Quran API
 
-**Rubika caveat:** `services/messengers/rubika.py` implements the official `botapi.rubika.ir/v3` method-call API (confirmed from `rubika.ir/botapi/methods`), but the exact field name Rubika uses for the getUpdates pagination cursor wasn't confirmed from public docs. It's marked clearly in that file (`# ADJUST if...`) — if updates repeat or updates stop advancing, that's the one place to check.
+## Telegram
 
-## Architecture
+Supports:
+
+* Private chats
+* Groups
+* Channels
+
+Features:
+
+* Long polling Telegram bot
+* Automatic user/group/channel registration
+* Scheduled Quran broadcasts
+
+## Scheduling
+
+Supports:
+
+* Daily public broadcasts
+* User-targeted broadcasts
+* Configurable timezone and delivery times
+
+## Storage
+
+PostgreSQL stores:
+
+* Users
+* Groups
+* Channels
+* Quran verses
+* Sent messages
+* Bot state
+* Admin permissions
+
+Redis handles:
+
+* Verse cache
+* Rate limiting
+* Temporary data
+
+---
+
+# 🏗 Architecture
 
 ```
-        ┌─────────┬──────────┬─────────┬─────────┐
-        │  Bale   │ Telegram │  Eitaa  │ Rubika  │
-        └────┬────┴────┬─────┴────┬────┴────┬────┘
-             │  services/messengers/*.py    │
-             └──────────────┬────────────────┘
-                             │  NormalizedMessage
-                             ▼
-                         BotRunner (bot.py)
-                             │
-   Natiq Quran API           │
-         │                   │
-         ▼                   │
- VerseIngestionService       │
-         │                   │
-         ▼                   │
-    PostgreSQL  ──────►  Redis
- (source of truth)     (cache + rate limiting)
+                Telegram Bot API
+                       |
+                       |
+                       ▼
+
+                  bot.py
+          (commands + message handling)
+
+                       |
+        ┌──────────────┴──────────────┐
+        ▼                             ▼
+
+ Verse Services              Scheduler Service
+        |                             |
+        ▼                             ▼
+
+ PostgreSQL  ◄──────────────►  Redis
+
+(source of truth)          (cache + limits)
+
+
+                       |
+                       ▼
+
+              Natiq Quran API
 ```
 
-- **Postgres** is the source of truth for users, groups, channels, verses,
-  admins, and delivery history (`sent_messages`) — all tagged with a
-  `platform` column, since the same numeric-looking id could theoretically
-  exist on two different platforms.
-- **Redis** is only a cache: a fast random-access copy of verses, plus
-  rate-limit counters, keyed per `platform:chat_id`.
-- Every messenger adapter (`services/messengers/`) implements one shared
-  interface (`get_updates` / `send_message`), returning a
-  `NormalizedMessage` so `bot.py`'s command handling never needs to know
-  which platform a message came from.
-- Every incoming message registers its chat (user/group/channel) in
-  Postgres, so scheduled broadcasts grow with real bot usage instead of
-  relying only on a static env var list.
+---
 
-## Project structure
+# 📂 Project Structure
 
 ```
 .
-├── bot.py                        # Bale polling loop + command handlers
-├── scheduler.py                  # Daily broadcasts + periodic verse refresh
-├── config.py
+├── bot.py                       # Telegram polling + command handlers
+├── scheduler.py                 # Scheduled jobs
+├── config.py                    # Environment configuration
 │
 ├── db/
-│   ├── base.py                   # SQLAlchemy declarative base
-│   ├── session.py                # Engine + get_session() context manager
-│   ├── models/                   # User, Channel, Group, Verse, SentMessage, BotState
-│   └── repositories/             # CRUD access per model
+│   ├── base.py                  # SQLAlchemy base
+│   ├── session.py               # Database sessions
+│   ├── models/                  # Database models
+│   └── repositories/            # Database access layer
 │
-├── cache/                        # Redis (named `cache`, not `redis` —
-│   ├── client.py                 # see note below)
-│   ├── verse_cache.py
-│   └── rate_limiter.py
+├── cache/
+│   ├── client.py                # Redis client
+│   ├── verse_cache.py           # Verse cache
+│   └── rate_limiter.py          # Rate limiting
 │
 ├── services/
-│   ├── messengers/                # One adapter per platform, shared interface
-│   │   ├── base.py                # MessengerAdapter + NormalizedMessage
-│   │   ├── telegram_like.py       # Shared Bale/Telegram polling logic
-│   │   ├── bale.py / telegram.py / eitaa.py / rubika.py
-│   │   └── registry.py            # Builds adapters from ENABLED_PLATFORMS
-│   ├── quran_api_client.py       # Talks to api.natiq.ir
-│   ├── verse_ingestion_service.py# API -> Postgres -> Redis
-│   ├── verse_service.py          # get_random_verse() + format_verse()
-│   ├── user_service.py           # registers chats, admin bootstrap, stats
-│   └── broadcast_service.py      # send-and-log for scheduled jobs, routes per platform
+│   ├── telegram.py              # Telegram API integration
+│   ├── quran_api_client.py      # Natiq Quran API client
+│   ├── verse_ingestion_service.py
+│   ├── verse_service.py
+│   ├── user_service.py
+│   └── broadcast_service.py
 │
 ├── scripts/
-│   └── ingest_verses.py          # `python -m scripts.ingest_verses`
+│   └── ingest_verses.py
 │
-├── migrations/                   # Alembic
-├── Dockerfile / docker-compose.yml
-└── requirements.txt
+├── migrations/                  # Alembic migrations
+│
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── .env
 ```
 
-> **Why `cache/` and not `redis/`?** The original project had a local
-> `redis/` folder, which shadowed the real `redis` pip package and broke
-> every `import redis` in the project. Keep this folder named `cache`.
+---
 
-## Installation
+# 🚀 Installation
+
+Clone the repository:
 
 ```bash
-git clone <your-repo-url>
+git clone <repository-url>
+
 cd bot
-cp .env.example .env   # fill in BALE_BOT_TOKEN, TRANSLATOR_UUID, etc.
 ```
 
-## Running with Docker (recommended)
+Create environment file:
+
+```bash
+cp .env.example .env
+```
+
+Configure your Telegram bot token and database settings.
+
+---
+
+# 🐳 Running with Docker
+
+Build:
 
 ```bash
 docker compose build
+```
+
+Start:
+
+```bash
 docker compose up -d
 ```
 
-Migrations run automatically on container start (see `entrypoint.sh`).
-Verses are ingested automatically on first startup if Postgres is empty
-(`INGEST_ON_STARTUP=true`).
+View logs:
 
-## Running locally
+```bash
+docker compose logs -f bot
+```
+
+Docker starts:
+
+* PostgreSQL
+* Redis
+* Natiq Telegram Bot
+
+---
+
+# 💻 Running Locally
+
+Create virtual environment:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
 
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run migrations:
+
+```bash
 alembic upgrade head
-python -m scripts.ingest_verses   # first-time verse import
+```
+
+Import Quran data:
+
+```bash
+python -m scripts.ingest_verses
+```
+
+Start bot:
+
+```bash
 python bot.py
 ```
 
-## Admin commands
+---
 
-Set `ADMIN_USER_IDS` in `.env` (comma-separated ids, on the platform set by `LEGACY_SEED_PLATFORM`, default `bale`). On startup those users are promoted to admin in Postgres. Admins can run:
+# ⚙️ Configuration
 
-- `/stats` — user/group/channel counts
+Example `.env`:
 
-## Configuration reference
+```env
+# Telegram
+BOT_TOKEN=your_telegram_token
 
-See `.env.example` for the full list. Notable ones:
 
-| Variable | Purpose |
-|---|---|
-| `TRANSLATOR_UUID` | Which Persian translation to ingest |
-| `VERSE_REFRESH_INTERVAL_HOURS` | How often verses are re-pulled from the API |
-| `RATE_LIMIT_MAX_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS` | `/random` rate limiting |
-| `CHANNEL_IDS` / `GROUP_IDS` / `USER_IDS` | One-time seed data imported into Postgres on first startup |
+# Database
+DATABASE_URL=postgresql+psycopg://natiq:natiq@localhost:5432/natiq_bot
 
-## Database migrations
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+
+# Quran API
+QURAN_API_URL=https://api.natiq.ir/api
+MUSHAF=hafs
+
+
+# Scheduler
+SCHEDULE_PUBLIC_HOUR=12
+SCHEDULE_PUBLIC_MINUTE=0
+
+SCHEDULE_USER_HOUR=3
+SCHEDULE_USER_MINUTE=0
+
+SCHEDULE_TIMEZONE=Asia/Riyadh
+
+
+# Startup
+INGEST_ON_STARTUP=True
+
+
+# Admins
+ADMIN_USER_IDS=123456789
+```
+
+---
+
+# 👑 Admin Commands
+
+Configure admins:
+
+```env
+ADMIN_USER_IDS=telegram_user_id
+```
+
+Available commands:
+
+```
+/stats
+```
+
+Displays:
+
+* User count
+* Group count
+* Channel count
+* Last verse ingestion status
+
+---
+
+# 🗄 Database Migrations
+
+Create migration:
 
 ```bash
-# after changing a model in db/models/
-alembic revision --autogenerate -m "describe the change"
+alembic revision --autogenerate -m "describe change"
+```
+
+Apply migration:
+
+```bash
 alembic upgrade head
 ```
 
-## License
+---
 
-Developed by the **Natiq Foundation**. All rights reserved.
+# 🔄 Verse Ingestion
+
+Automatic ingestion:
+
+```env
+INGEST_ON_STARTUP=True
+```
+
+Manual ingestion:
+
+```bash
+python -m scripts.ingest_verses
+```
+
+---
+
+# 🛠 Troubleshooting
+
+## PostgreSQL connection refused
+
+Check containers:
+
+```bash
+docker compose ps
+```
+
+Restart PostgreSQL:
+
+```bash
+docker compose restart postgres
+```
+
+## Redis connection refused
+
+Check Redis:
+
+```bash
+docker compose logs redis
+```
+
+---
+
+# 📜 License
+
+Developed by the **Natiq Foundation**.
+
+All rights reserved.
+
