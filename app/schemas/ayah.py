@@ -1,10 +1,8 @@
-from dataclasses import dataclass
+from pydantic import BaseModel
 
 
-@dataclass(slots=True)
-class Ayah:
-    uuid: str
-    surah_number: int
-    surah_name: str
-    ayah_number: int
+class Ayah(BaseModel):
     text: str
+    surah_name: str
+    surah_number: int
+    ayah_number: int
