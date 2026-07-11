@@ -3,7 +3,7 @@ import logging
 from telegram.ext import Application
 from telegram.request import HTTPXRequest
 
-from app.bot.handlers.start import get_handler
+from app.bot.router import register_handlers
 from app.core.config import get_settings
 from app.core.container import Container
 
@@ -28,17 +28,19 @@ def create_application(container: Container) -> Application:
     )
 
     if settings.BOT_API:
-        builder = builder.base_url(
-            settings.BOT_API.rstrip("/") + "/bot"
-        ).base_file_url(
-            settings.BOT_API.rstrip("/") + "/file/bot"
+        api = settings.BOT_API.rstrip("/")
+
+        builder = (
+            builder
+            .base_url(f"{api}/bot")
+            .base_file_url(f"{api}/file/bot")
         )
 
     application = builder.build()
 
     application.bot_data["container"] = container
 
-    application.add_handler(get_handler())
+    register_handlers(application)
 
     logger.info("Telegram handlers registered.")
 

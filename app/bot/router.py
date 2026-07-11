@@ -1,7 +1,9 @@
 from telegram.ext import Application
 
-from app.bot.handlers.start import start
+from app.bot.handlers.random import get_handler as get_random_handler
+from app.bot.handlers.start import get_handler as get_start_handler
 
 
 def register_handlers(application: Application) -> None:
-    application.add_handler(start())
+    application.add_handler(get_start_handler())
+    application.add_handler(get_random_handler())
