@@ -1,0 +1,23 @@
+# Environment
+.env
+.env.local
+.env.docker
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Cache
+.pytest_cache/
+.mypy_cache/
+
+# OS
+.DS_Store
