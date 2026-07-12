@@ -72,7 +72,7 @@ class Settings(BaseSettings):
 
     QURAN_TRANSLATION_LANGUAGE: str = "fa"
 
-
+    QURAN_TRANSLATOR: str | None = None
     # -------------------------
     # Cache
     # -------------------------

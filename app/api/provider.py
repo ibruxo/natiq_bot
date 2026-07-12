@@ -20,7 +20,6 @@ TAKHTIT_UUID = "9419b5bd-8827-4a59-8dbc-935a472ca2f7"
 
 class NatiqProvider:
 
-
     def __init__(
         self,
         client: APIClient,
@@ -33,6 +32,10 @@ class NatiqProvider:
 
 
 
+    # ==================================================
+    # HTTP
+    # ==================================================
+
     async def _get_with_retry(
         self,
         endpoint: str,
@@ -42,6 +45,7 @@ class NatiqProvider:
     ):
 
         last_error = None
+
 
         for attempt in range(retries):
 
@@ -82,6 +86,7 @@ class NatiqProvider:
     ) -> list[dict[str, Any]]:
 
         if isinstance(payload, list):
+
             return payload
 
 
@@ -135,6 +140,7 @@ class NatiqProvider:
 
 
             if not items:
+
                 break
 
 
@@ -162,13 +168,12 @@ class NatiqProvider:
 
 
     # ==================================================
-    # Takhtits / Ayah metadata
+    # Takhtits
     # ==================================================
 
     async def list_takhtits(
         self,
     ) -> list[dict[str, Any]]:
-
 
         logger.info(
             "Loading takhtits..."
@@ -196,19 +201,25 @@ class NatiqProvider:
 
 
     # ==================================================
-    # Translation
+    # Translations
     # ==================================================
 
     async def list_translations(
         self,
     ) -> list[dict[str, Any]]:
 
+
         try:
 
             response = await self._get_with_retry(
                 "/translations/",
                 params={
-                    "mushaf": self._settings.QURAN_MUSHAF,
+                    "language": (
+                        self._settings.QURAN_TRANSLATION_LANGUAGE
+                    ),
+                    "mushaf": (
+                        self._settings.QURAN_MUSHAF
+                    ),
                 },
             )
 
@@ -220,15 +231,69 @@ class NatiqProvider:
 
             if not translations:
 
-                logger.info(
+                logger.warning(
                     "No translations found"
                 )
 
                 return []
 
 
-            translation_uuid = (
-                translations[0].get("uuid")
+
+            selected = None
+
+
+            wanted = (
+                self._settings.QURAN_TRANSLATOR
+            )
+
+
+            if wanted:
+
+                for item in translations:
+
+                    translator = item.get(
+                        "translator",
+                        {},
+                    )
+
+
+                    if translator.get(
+                        "name"
+                    ) == wanted:
+
+                        selected = item
+
+                        break
+
+
+
+            if selected is None:
+
+                selected = translations[0]
+
+
+
+            translation_uuid = selected.get(
+                "uuid"
+            )
+
+
+            translator_name = (
+                selected
+                .get(
+                    "translator",
+                    {},
+                )
+                .get(
+                    "name",
+                    "unknown",
+                )
+            )
+
+
+            logger.info(
+                "Using translation: %s",
+                translator_name,
             )
 
 
@@ -237,23 +302,59 @@ class NatiqProvider:
                 return []
 
 
-            response = await self._get_with_retry(
-                f"/translations/{translation_uuid}/ayahs/",
-            )
+
+            results = []
+
+            offset = 0
+
+            limit = 200
 
 
-            result = self._extract_list(
-                response.json()
-            )
+
+            while True:
+
+                response = await self._get_with_retry(
+                    f"/translations/{translation_uuid}/ayahs/",
+                    params={
+                        "offset": offset,
+                    },
+                )
+
+
+                items = self._extract_list(
+                    response.json()
+                )
+
+
+                if not items:
+
+                    break
+
+
+
+                results.extend(
+                    items
+                )
+
+
+                logger.info(
+                    "Loaded %s translations",
+                    len(results),
+                )
+
+
+                offset += limit
+
 
 
             logger.info(
-                "Loaded %s translations",
-                len(result),
+                "Finished loading %s translations",
+                len(results),
             )
 
 
-            return result
+            return results
+
 
 
         except Exception as exc:
@@ -283,9 +384,11 @@ class NatiqProvider:
             )
 
 
+
         ayah = random.choice(
             self._cache.ayahs
         )
+
 
 
         metadata = next(
@@ -297,6 +400,7 @@ class NatiqProvider:
             ),
             {},
         )
+
 
 
         surah_number = metadata.get(
@@ -314,12 +418,20 @@ class NatiqProvider:
         )
 
 
+
         translation = None
+
+
+        ayah_uuid = ayah.get(
+            "uuid"
+        )
 
 
         for item in self._cache.translations:
 
-            if item.get("uuid") == ayah.get("uuid"):
+            if item.get(
+                "ayah_uuid"
+            ) == ayah_uuid:
 
                 translation = item.get(
                     "text"
@@ -336,14 +448,18 @@ class NatiqProvider:
                 "",
             ),
 
+
             translation=translation,
+
 
             surah_name=SURAH_NAMES.get(
                 surah_number,
                 "Unknown",
             ),
 
+
             surah_number=surah_number,
+
 
             ayah_number=ayah_number,
         )
