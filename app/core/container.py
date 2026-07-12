@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from app.api.client import APIClient
 from app.api.provider import NatiqProvider
 
@@ -7,71 +9,66 @@ from app.cache.quran import QuranCache
 from app.cache.loader import QuranCacheLoader
 from app.cache.redis import RedisCache
 
-from app.core.config import Settings, get_settings
 from app.database.session import Database
+
+
+logger = logging.getLogger(__name__)
 
 
 class Container:
     """
-    Central dependency container.
+    Application dependency container.
 
-    Creates and owns all long-running services.
+    Responsible for:
+    - Database lifecycle
+    - Redis lifecycle
+    - HTTP client
+    - Quran cache
+    - Quran provider
+    - Cache loading
     """
+
 
     def __init__(self) -> None:
 
-        self._settings: Settings = get_settings()
-
-        #
-        # Infrastructure
-        #
-
+        # Database
         self._database = Database()
 
-        self._cache = RedisCache()
 
+        # Redis
+        self._redis = RedisCache()
+
+
+        # Quran memory cache
+        self._cache = QuranCache()
+
+
+        # HTTP API client
         self._http = APIClient()
 
 
-        #
-        # Quran cache
-        #
-
-        self._quran_cache = QuranCache()
-
-
-        #
-        # API provider
-        #
-
+        # Quran API provider
         self._provider = NatiqProvider(
             client=self._http,
-            cache=self._quran_cache,
+            cache=self._cache,
         )
 
 
-        #
         # Cache loader
-        #
-
-        self._quran_cache_loader = QuranCacheLoader(
+        self._loader = QuranCacheLoader(
             provider=self._provider,
-            cache=self._quran_cache,
+            cache=self._cache,
         )
 
 
-    #
-    # Settings
-    #
-
-    @property
-    def settings(self) -> Settings:
-        return self._settings
+        logger.info(
+            "Container initialized."
+        )
 
 
-    #
-    # Infrastructure
-    #
+    # --------------------------------------------------
+    # Properties
+    # --------------------------------------------------
 
     @property
     def database(self) -> Database:
@@ -79,7 +76,12 @@ class Container:
 
 
     @property
-    def cache(self) -> RedisCache:
+    def redis(self) -> RedisCache:
+        return self._redis
+
+
+    @property
+    def cache(self) -> QuranCache:
         return self._cache
 
 
@@ -88,52 +90,67 @@ class Container:
         return self._http
 
 
-    #
-    # Quran
-    #
-
-    @property
-    def quran_cache(self) -> QuranCache:
-        return self._quran_cache
-
-
-    @property
-    def quran_cache_loader(self) -> QuranCacheLoader:
-        return self._quran_cache_loader
-
-
-    #
-    # Provider
-    #
-
     @property
     def provider(self) -> NatiqProvider:
         return self._provider
 
 
-    #
+    @property
+    def loader(self) -> QuranCacheLoader:
+        return self._loader
+
+
+    # --------------------------------------------------
     # Lifecycle
-    #
+    # --------------------------------------------------
 
     async def startup(self) -> None:
+        """
+        Initialize all services.
+        """
 
-        await self.database.connect()
 
-        await self.cache.connect()
+        # Database
+        if hasattr(self._database, "connect"):
+            await self._database.connect()
 
-        await self.http.connect()
 
-        await self.quran_cache_loader.load()
+        # Redis
+        if hasattr(self._redis, "connect"):
+            await self._redis.connect()
+
+
+        # Load Quran data
+        await self._loader.load()
+
+
+        logger.info(
+            "Container startup completed."
+        )
+
 
 
     async def shutdown(self) -> None:
+        """
+        Gracefully close services.
+        """
 
-        try:
-            await self.http.close()
 
-        finally:
-            try:
-                await self.cache.close()
+        # HTTP
+        if hasattr(self._http, "close"):
+            await self._http.close()
 
-            finally:
-                await self.database.dispose()
+
+        # Database
+        if hasattr(self._database, "close"):
+            await self._database.close()
+
+
+        # Redis
+        if hasattr(self._redis, "close"):
+            await self._redis.close()
+
+
+        logger.info(
+            "Container shutdown completed."
+        )

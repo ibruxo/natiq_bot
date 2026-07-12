@@ -1,88 +1,127 @@
+from __future__ import annotations
+
 from functools import lru_cache
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=True,
-        extra="ignore",
-    )
 
-    # ------------------------------------------------------------------
+    # -------------------------
     # Application
-    # ------------------------------------------------------------------
+    # -------------------------
 
     APP_NAME: str = "Quran Bot"
+
     DEBUG: bool = False
-    ENVIRONMENT: str = "development"
+
     LOG_LEVEL: str = "INFO"
 
-    # ------------------------------------------------------------------
-    # Telegram
-    # ------------------------------------------------------------------
 
-    BOT_TOKEN: str
-    BOT_USERNAME: str = ""
+    # -------------------------
+    # Bot
+    # -------------------------
+
+    BOT_TOKEN: str = ""
 
     BOT_API: str = "https://api.telegram.org"
 
-    BOT_CONNECT_TIMEOUT: int = 20
-    BOT_READ_TIMEOUT: int = 60
-    BOT_WRITE_TIMEOUT: int = 60
-    BOT_POOL_TIMEOUT: int = 30
 
-    # ------------------------------------------------------------------
+    # -------------------------
     # Database
-    # ------------------------------------------------------------------
+    # -------------------------
 
-    DATABASE_URL: str
+    DATABASE_URL: str = (
+        "postgresql+asyncpg://postgres:postgres@postgres:5432/quran_bot"
+    )
 
-    # ------------------------------------------------------------------
+
+    # -------------------------
     # Redis
-    # ------------------------------------------------------------------
+    # -------------------------
 
-    REDIS_URL: str
+    REDIS_URL: str = (
+        "redis://redis:6379/0"
+    )
 
-    # ------------------------------------------------------------------
+
+    # -------------------------
     # Natiq API
-    # ------------------------------------------------------------------
+    # -------------------------
 
-    NATIQ_PRIMARY_API: str = Field(
-        default="https://api.natiq.net/api"
+    NATIQ_API_URL: str = (
+        "https://api.natiq.net"
     )
 
-    NATIQ_SECONDARY_API: str = Field(
-        default="https://api.natiq.ir/api"
+    NATIQ_PRIMARY_API: str = (
+        "https://api.natiq.net"
     )
 
-    NATIQ_API_TOKEN: str = ""
 
-    # ------------------------------------------------------------------
+    NATIQ_API_TOKEN: str | None = None
+
+
+    NATIQ_API_TIMEOUT: int = 30
+
+
+    # -------------------------
+    # Quran
+    # -------------------------
+
+    QURAN_MUSHAF: str = "hafs"
+
+    QURAN_TRANSLATION_LANGUAGE: str = "fa"
+
+
+    # -------------------------
     # Cache
-    # ------------------------------------------------------------------
+    # -------------------------
 
-    CACHE_DEFAULT_TTL: int = 3600
-
-    # ------------------------------------------------------------------
-    # Timezone
-    # ------------------------------------------------------------------
-
-    DEFAULT_TIMEZONE: str = "Asia/Tehran"
-
-    # ------------------------------------------------------------------
-    # Features
-    # ------------------------------------------------------------------
-
-    ENABLE_SEARCH: bool = True
-    ENABLE_FAVORITES: bool = True
-    ENABLE_DAILY_AYAH: bool = True
-    ENABLE_ADMIN: bool = True
+    CACHE_ENABLED: bool = True
 
 
-@lru_cache(maxsize=1)
+    # -------------------------
+    # Docker
+    # -------------------------
+
+    TZ: str = "UTC"
+
+
+
+    # -------------------------
+    # Compatibility properties
+    # Used by APIClient
+    # -------------------------
+
+    @property
+    def api_headers(self) -> dict[str, str]:
+
+        headers = {
+            "Accept": "application/json",
+        }
+
+
+        if self.NATIQ_API_TOKEN:
+
+            headers["Authorization"] = (
+                f"Bearer {self.NATIQ_API_TOKEN}"
+            )
+
+
+        return headers
+
+
+
+    model_config = SettingsConfigDict(
+        env_file=".env.docker",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=True,
+    )
+
+
+
+@lru_cache
 def get_settings() -> Settings:
+
     return Settings()

@@ -1,26 +1,71 @@
 from __future__ import annotations
 
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 class QuranCache:
 
-    def __init__(self) -> None:
+    def __init__(self):
 
-        self.ayahs: list = []
+        self.ayahs = []
 
-        self.surahs: dict = {}
+        self.surahs = []
 
-        self.translations: list = []
+        self.translations = []
 
-        self.takhtits: list = []
+        self.takhtits = []
 
 
-
-    def get_surah(
+    def set_ayahs(
         self,
-        uuid: str | None,
+        items,
     ):
 
-        if not uuid:
-            return None
+        self.ayahs = items
 
-        return self.surahs.get(uuid)
+        logger.info(
+            "Cached %s ayahs",
+            len(items),
+        )
+
+
+    def set_surahs(
+        self,
+        items,
+    ):
+
+        self.surahs = items
+
+        logger.info(
+            "Cached %s surahs",
+            len(items),
+        )
+
+
+    def set_translations(
+        self,
+        items,
+    ):
+
+        self.translations = items
+
+        logger.info(
+            "Cached %s translations",
+            len(items),
+        )
+
+
+    def set_takhtits(
+        self,
+        items,
+    ):
+
+        self.takhtits = items
+
+        logger.info(
+            "Cached %s takhtits",
+            len(items),
+        )

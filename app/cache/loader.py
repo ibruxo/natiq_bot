@@ -2,153 +2,64 @@ from __future__ import annotations
 
 import logging
 
-from app.api.provider import NatiqProvider
-from app.cache.quran import QuranCache
-
 
 logger = logging.getLogger(__name__)
 
 
 class QuranCacheLoader:
 
-
     def __init__(
         self,
-        provider: NatiqProvider,
-        cache: QuranCache,
-    ) -> None:
+        provider,
+        cache,
+    ):
 
         self.provider = provider
         self.cache = cache
 
 
 
-    async def load(
-        self,
-    ) -> None:
+    async def load(self):
 
         logger.info(
             "Loading Quran cache..."
         )
 
 
+        ayahs = await self.provider.list_ayahs()
 
-        #
-        # Ayahs
-        #
-
-        try:
-
-            ayahs = await self.provider.list_ayahs()
+        self.cache.set_ayahs(
+            ayahs
+        )
 
 
-            if ayahs:
+        if len(ayahs) < 6000:
 
-                self.cache.ayahs.extend(
-                    ayahs
-                )
-
-
-                for ayah in ayahs:
-
-
-                    surah = ayah.get(
-                        "surah"
-                    )
-
-
-                    if not surah:
-                        continue
-
-
-
-                    uuid = surah.get(
-                        "uuid"
-                    )
-
-
-                    if uuid:
-
-                        self.cache.surahs[uuid] = surah
-
-
-
-            logger.info(
-                "Cached %s ayahs",
-                len(self.cache.ayahs),
+            logger.warning(
+                "Ayah count looks incorrect: %s",
+                len(ayahs),
             )
 
 
-            logger.info(
-                "Cached %s surahs",
-                len(self.cache.surahs),
-            )
+        surahs = await self.provider.list_surahs()
+
+        self.cache.set_surahs(
+            surahs
+        )
 
 
-        except Exception:
+        translations = await self.provider.list_translations()
 
-            logger.exception(
-                "Failed loading ayahs"
-            )
-
-
-
-        #
-        # Translations
-        #
-
-        try:
-
-            translations = (
-                await self.provider.list_translations()
-            )
+        self.cache.set_translations(
+            translations
+        )
 
 
-            self.cache.translations = translations
+        takhtits = await self.provider.list_takhtits()
 
-
-
-            logger.info(
-                "Cached %s translations",
-                len(translations),
-            )
-
-
-        except Exception:
-
-            logger.exception(
-                "Failed loading translations"
-            )
-
-
-
-        #
-        # Takhtits
-        #
-
-        try:
-
-            takhtits = (
-                await self.provider.list_takhtits()
-            )
-
-
-            self.cache.takhtits = takhtits
-
-
-
-            logger.info(
-                "Cached %s takhtits",
-                len(takhtits),
-            )
-
-
-        except Exception:
-
-            logger.exception(
-                "Failed loading takhtits"
-            )
-
+        self.cache.set_takhtits(
+            takhtits
+        )
 
 
         logger.info(
