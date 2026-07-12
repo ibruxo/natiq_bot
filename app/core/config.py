@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     NATIQ_API_TOKEN: str | None = None
 
 
-    NATIQ_API_TIMEOUT: int = 30
+    NATIQ_API_TIMEOUT: int = 120
 
 
     # -------------------------

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 
 class QuranCacheLoader:
+
 
     def __init__(
         self,
@@ -26,6 +26,7 @@ class QuranCacheLoader:
         )
 
 
+        # Load ayahs
         ayahs = await self.provider.list_ayahs()
 
         self.cache.set_ayahs(
@@ -41,13 +42,7 @@ class QuranCacheLoader:
             )
 
 
-        surahs = await self.provider.list_surahs()
-
-        self.cache.set_surahs(
-            surahs
-        )
-
-
+        # Load translations
         translations = await self.provider.list_translations()
 
         self.cache.set_translations(
@@ -55,6 +50,7 @@ class QuranCacheLoader:
         )
 
 
+        # Load takhtits
         takhtits = await self.provider.list_takhtits()
 
         self.cache.set_takhtits(
