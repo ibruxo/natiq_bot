@@ -9,10 +9,50 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  preflight:
+    name: Preflight (fork-safe check)
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Check Docker Hub configuration
+        id: check
+        env:
+          DOCKER_HUB_USERNAME: ${{ vars.DOCKER_HUB_USERNAME }}
+        run: |
+          if [ -z "$DOCKER_HUB_USERNAME" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Docker build skipped"
+              echo ""
+              echo "The repository variable \`DOCKER_HUB_USERNAME\` is not set."
+              echo "This is expected on forks that have not configured Docker Hub publishing."
+              echo ""
+              echo "To enable it, add the repository **variable** \`DOCKER_HUB_USERNAME\`"
+              echo "and the repository **secret** \`DOCKER_HUB_ACCESS_TOKEN\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "Skipping: DOCKER_HUB_USERNAME is not configured."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Docker Hub publishing enabled for user: $DOCKER_HUB_USERNAME"
+          fi
+
   build-and-push:
     name: Build and Push Docker Image
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Validate required credentials
+        env:
+          DOCKER_HUB_ACCESS_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$DOCKER_HUB_ACCESS_TOKEN" ]; then
+            echo "::error::DOCKER_HUB_USERNAME is set but the secret DOCKER_HUB_ACCESS_TOKEN is missing. Add the DOCKER_HUB_ACCESS_TOKEN secret to push to Docker Hub."
+            exit 1
+          fi
+          echo "Required credentials are present."
+
       - name: Checkout code
         uses: actions/checkout@v4
 
