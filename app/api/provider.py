@@ -14,7 +14,6 @@ from app.schemas.ayah import Ayah
 
 logger = logging.getLogger(__name__)
 
-
 TAKHTIT_UUID = "9419b5bd-8827-4a59-8dbc-935a472ca2f7"
 
 
@@ -31,7 +30,6 @@ class NatiqProvider:
         self._settings = get_settings()
 
 
-
     # ==================================================
     # HTTP
     # ==================================================
@@ -42,9 +40,9 @@ class NatiqProvider:
         *,
         params: dict[str, Any] | None = None,
         retries: int = 3,
-    ):
+    ) -> Any:
 
-        last_error = None
+        last_error: Exception | None = None
 
 
         for attempt in range(retries):
@@ -112,14 +110,13 @@ class NatiqProvider:
     ) -> list[dict[str, Any]]:
 
         logger.info(
-            "Loading Quran ayahs..."
+            "Loading ayahs..."
         )
 
 
-        results = []
+        results: list[dict[str, Any]] = []
 
         offset = 0
-
         limit = 200
 
 
@@ -130,6 +127,7 @@ class NatiqProvider:
                 params={
                     "mushaf": self._settings.QURAN_MUSHAF,
                     "offset": offset,
+                    "limit": limit,
                 },
             )
 
@@ -151,6 +149,11 @@ class NatiqProvider:
                 "Loaded %s ayahs",
                 len(results),
             )
+
+
+            if len(items) < limit:
+
+                break
 
 
             offset += limit
@@ -180,23 +183,93 @@ class NatiqProvider:
         )
 
 
-        response = await self._get_with_retry(
-            f"/takhtits/{TAKHTIT_UUID}/ayahs_breakers/",
-        )
+        results: list[dict[str, Any]] = []
+
+        seen: set[str] = set()
+
+        offset = 0
+        limit = 200
 
 
-        items = self._extract_list(
-            response.json()
-        )
+        while True:
+
+            response = await self._get_with_retry(
+                f"/takhtits/{TAKHTIT_UUID}/ayahs_breakers/",
+                params={
+                    "offset": offset,
+                    "limit": limit,
+                },
+            )
+
+
+            items = self._extract_list(
+                response.json()
+            )
+
+
+            if not items:
+
+                break
+
+
+            added = 0
+
+
+            for item in items:
+
+                uuid = item.get(
+                    "uuid"
+                )
+
+
+                if uuid:
+
+                    if uuid in seen:
+
+                        continue
+
+                    seen.add(uuid)
+
+
+                results.append(item)
+
+                added += 1
+
+
+
+            logger.info(
+                "Loaded %s takhtits",
+                len(results),
+            )
+
+
+            if added == 0:
+
+                logger.warning(
+                    "Repeated takhtit page detected"
+                )
+
+                break
+
+
+
+            if len(items) < limit:
+
+                break
+
+
+
+            offset += limit
+
 
 
         logger.info(
-            "Loaded %s takhtit records",
-            len(items),
+            "Finished loading %s takhtits",
+            len(results),
         )
 
 
-        return items
+        return results
 
 
 
@@ -208,18 +281,13 @@ class NatiqProvider:
         self,
     ) -> list[dict[str, Any]]:
 
-
         try:
 
             response = await self._get_with_retry(
                 "/translations/",
                 params={
-                    "language": (
-                        self._settings.QURAN_TRANSLATION_LANGUAGE
-                    ),
-                    "mushaf": (
-                        self._settings.QURAN_MUSHAF
-                    ),
+                    "language": self._settings.QURAN_TRANSLATION_LANGUAGE,
+                    "mushaf": self._settings.QURAN_MUSHAF,
                 },
             )
 
@@ -241,10 +309,8 @@ class NatiqProvider:
 
             selected = None
 
+            wanted = self._settings.QURAN_TRANSLATOR
 
-            wanted = (
-                self._settings.QURAN_TRANSLATOR
-            )
 
 
             if wanted:
@@ -278,35 +344,15 @@ class NatiqProvider:
             )
 
 
-            translator_name = (
-                selected
-                .get(
-                    "translator",
-                    {},
-                )
-                .get(
-                    "name",
-                    "unknown",
-                )
-            )
-
-
-            logger.info(
-                "Using translation: %s",
-                translator_name,
-            )
-
-
             if not translation_uuid:
 
                 return []
 
 
 
-            results = []
+            results: list[dict[str, Any]] = []
 
             offset = 0
-
             limit = 200
 
 
@@ -317,6 +363,7 @@ class NatiqProvider:
                     f"/translations/{translation_uuid}/ayahs/",
                     params={
                         "offset": offset,
+                        "limit": limit,
                     },
                 )
 
@@ -331,16 +378,12 @@ class NatiqProvider:
                     break
 
 
-
-                results.extend(
-                    items
-                )
+                results.extend(items)
 
 
-                logger.info(
-                    "Loaded %s translations",
-                    len(results),
-                )
+                if len(items) < limit:
+
+                    break
 
 
                 offset += limit
@@ -376,7 +419,6 @@ class NatiqProvider:
         self,
     ) -> Ayah:
 
-
         if not self._cache.ayahs:
 
             raise RuntimeError(
@@ -384,11 +426,9 @@ class NatiqProvider:
             )
 
 
-
         ayah = random.choice(
             self._cache.ayahs
         )
-
 
 
         metadata = next(
@@ -400,7 +440,6 @@ class NatiqProvider:
             ),
             {},
         )
-
 
 
         surah_number = metadata.get(
@@ -416,7 +455,6 @@ class NatiqProvider:
                 0,
             ),
         )
-
 
 
         translation = None
@@ -442,24 +480,19 @@ class NatiqProvider:
 
 
         return Ayah(
-
             text=ayah.get(
                 "text",
                 "",
             ),
 
-
             translation=translation,
-
 
             surah_name=SURAH_NAMES.get(
                 surah_number,
                 "Unknown",
             ),
 
-
             surah_number=surah_number,
-
 
             ayah_number=ayah_number,
         )
