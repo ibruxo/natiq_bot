@@ -259,7 +259,7 @@ class NatiqProvider:
 
 
 
-            offset += limit
+            offset += len(items)
 
 
 
@@ -523,6 +523,30 @@ class NatiqProvider:
         current_uuid: str | None = None,
     ) -> Ayah:
 
+        return await self._navigate_ayah(
+            current_uuid=current_uuid,
+            direction="next",
+        )
+
+
+    async def previous_ayah(
+        self,
+        current_uuid: str | None = None,
+    ) -> Ayah:
+
+        return await self._navigate_ayah(
+            current_uuid=current_uuid,
+            direction="previous",
+        )
+
+
+    async def _navigate_ayah(
+        self,
+        current_uuid: str | None = None,
+        *,
+        direction: str,
+    ) -> Ayah:
+
         if not self._cache.ayahs:
 
             raise RuntimeError(
@@ -593,14 +617,25 @@ class NatiqProvider:
                 ),
             )
 
-            if (
-                candidate_surah == current_surah
-                and candidate_number == current_number + 1
-            ):
+            if candidate_surah != current_surah:
 
-                return self._build_ayah_from_item(
-                    ayah,
-                )
+                continue
+
+            if direction == "next":
+
+                if candidate_number == current_number + 1:
+
+                    return self._build_ayah_from_item(
+                        ayah,
+                    )
+
+            else:
+
+                if candidate_number == current_number - 1:
+
+                    return self._build_ayah_from_item(
+                        ayah,
+                    )
 
 
         current_index = next(
@@ -612,7 +647,9 @@ class NatiqProvider:
         )
 
 
-        next_index = (current_index + 1) % len(
+        delta = 1 if direction == "next" else -1
+
+        next_index = (current_index + delta) % len(
             self._cache.ayahs
         )
 

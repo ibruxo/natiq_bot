@@ -15,15 +15,12 @@ from app.ui.keyboards import random_ayah_keyboard
 from app.bot.handlers.random import format_ayah
 
 
-logger = logging.getLogger(__name__)
-
-
-
-async def random_ayah_callback(
+async def _handle_navigation(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
+    *,
+    direction: str,
 ) -> None:
-
 
     query = update.callback_query
 
@@ -47,14 +44,18 @@ async def random_ayah_callback(
 
         current_uuid = None
 
-        if callback_data.startswith("next_ayah:"):
+        if callback_data.startswith(f"{direction}_ayah:"):
 
             current_uuid = callback_data.split(":", 1)[1]
 
 
-        ayah: Ayah = await (
-            container.provider.next_ayah(current_uuid)
-        )
+        if direction == "next":
+
+            ayah: Ayah = await container.provider.next_ayah(current_uuid)
+
+        else:
+
+            ayah: Ayah = await container.provider.previous_ayah(current_uuid)
 
 
         await query.edit_message_text(
@@ -66,7 +67,7 @@ async def random_ayah_callback(
     except Exception as exc:
 
         logger.exception(
-            "Random callback failed: %s",
+            "Ayah navigation failed: %s",
             exc,
         )
 
@@ -76,10 +77,37 @@ async def random_ayah_callback(
         )
 
 
+logger = logging.getLogger(__name__)
+
+
+
+async def _navigation_callback(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+
+    callback_data = update.callback_query.data if update.callback_query else ""
+
+    if callback_data.startswith("next_ayah"):
+
+        await _handle_navigation(
+            update,
+            context,
+            direction="next",
+        )
+
+    elif callback_data.startswith("previous_ayah"):
+
+        await _handle_navigation(
+            update,
+            context,
+            direction="previous",
+        )
+
 
 def get_callback_handler() -> CallbackQueryHandler:
 
     return CallbackQueryHandler(
-        random_ayah_callback,
-        pattern=r"^next_ayah(?:\:.*)?$",
+        _navigation_callback,
+        pattern=r"^(next|previous)_ayah(?:\:.*)?$",
     )
