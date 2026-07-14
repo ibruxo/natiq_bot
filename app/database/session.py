@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from sqlalchemy.engine import make_url
+
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -20,8 +22,25 @@ class Database:
 
         settings = get_settings()
 
+        database_url = settings.DATABASE_URL
+
+        try:
+            url = make_url(database_url)
+        except Exception:
+            url = None
+
+        if url and str(url.drivername).startswith("postgresql"):
+            if url.drivername == "postgresql":
+                database_url = database_url.replace(
+                    "postgresql://",
+                    "postgresql+asyncpg://",
+                    1,
+                )
+            elif url.drivername == "postgresql+asyncpg":
+                database_url = database_url
+
         self.engine = create_async_engine(
-            settings.DATABASE_URL,
+            database_url,
             echo=settings.DEBUG,
             pool_pre_ping=True,
         )

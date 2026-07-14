@@ -32,8 +32,11 @@ class APIClient:
                 self._settings.NATIQ_PRIMARY_API
                 .rstrip("/")
             ),
-            timeout=(
-                self._settings.NATIQ_API_TIMEOUT
+            timeout=httpx.Timeout(
+                connect=self._settings.NATIQ_API_TIMEOUT,
+                read=self._settings.NATIQ_API_TIMEOUT * 2,
+                write=self._settings.NATIQ_API_TIMEOUT,
+                pool=self._settings.NATIQ_API_TIMEOUT * 2,
             ),
             headers=(
                 self._settings.api_headers

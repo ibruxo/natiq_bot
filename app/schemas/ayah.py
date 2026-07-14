@@ -7,6 +7,8 @@ class Ayah(BaseModel):
 
     text: str
 
+    uuid: str | None = None
+
     translation: str | None = None
 
     surah_name: str = "Unknown"

@@ -7,9 +7,32 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from app.core.container import Container
 from app.schemas.ayah import Ayah
+from app.ui.keyboards import random_ayah_keyboard
 
 
 logger = logging.getLogger(__name__)
+
+
+def format_ayah(ayah: Ayah) -> str:
+
+    text = (
+        f"﴿ {ayah.text} ﴾\n\n"
+        f"📖 {ayah.surah_name}\n"
+        f"آیه {ayah.ayah_number} | "
+        f"سوره {ayah.surah_number}"
+    )
+
+
+    if ayah.translation:
+
+        text += (
+            "\n\n"
+            "ترجمه:\n"
+            f"{ayah.translation}"
+        )
+
+
+    return text
 
 
 
@@ -21,11 +44,9 @@ async def random_ayah(
     Send a random Quran ayah.
     """
 
-
     if not update.message:
 
         return
-
 
 
     try:
@@ -40,25 +61,9 @@ async def random_ayah(
         )
 
 
-        text = (
-            f"﴿ {ayah.text} ﴾\n\n"
-            f"📖 {ayah.surah_name}\n"
-            f"آیه {ayah.ayah_number} | "
-            f"سوره {ayah.surah_number}"
-        )
-
-
-        if ayah.translation:
-
-            text += (
-                "\n\n"
-                f"ترجمه:\n"
-                f"{ayah.translation}"
-            )
-
-
         await update.message.reply_text(
-            text
+            text=format_ayah(ayah),
+            reply_markup=random_ayah_keyboard(ayah.uuid),
         )
 
 
