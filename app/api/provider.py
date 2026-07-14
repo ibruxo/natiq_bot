@@ -156,7 +156,7 @@ class NatiqProvider:
                 break
 
 
-            offset += limit
+            offset += len(items)
 
 
 
@@ -386,8 +386,7 @@ class NatiqProvider:
                     break
 
 
-                offset += limit
-
+                offset += len(items)
 
 
             logger.info(
@@ -397,7 +396,6 @@ class NatiqProvider:
 
 
             return results
-
 
 
         except Exception as exc:
@@ -415,23 +413,12 @@ class NatiqProvider:
     # Random Ayah
     # ==================================================
 
-    async def random_ayah(
+    def _get_ayah_metadata(
         self,
-    ) -> Ayah:
+        ayah: dict[str, Any],
+    ) -> dict[str, Any]:
 
-        if not self._cache.ayahs:
-
-            raise RuntimeError(
-                "Quran cache empty"
-            )
-
-
-        ayah = random.choice(
-            self._cache.ayahs
-        )
-
-
-        metadata = next(
+        return next(
             (
                 item
                 for item in self._cache.takhtits
@@ -439,6 +426,16 @@ class NatiqProvider:
                 == ayah.get("uuid")
             ),
             {},
+        )
+
+
+    def _build_ayah_from_item(
+        self,
+        ayah: dict[str, Any],
+    ) -> Ayah:
+
+        metadata = self._get_ayah_metadata(
+            ayah,
         )
 
 
@@ -485,6 +482,8 @@ class NatiqProvider:
                 "",
             ),
 
+            uuid=ayah_uuid,
+
             translation=translation,
 
             surah_name=SURAH_NAMES.get(
@@ -495,4 +494,132 @@ class NatiqProvider:
             surah_number=surah_number,
 
             ayah_number=ayah_number,
+        )
+
+
+    async def random_ayah(
+        self,
+    ) -> Ayah:
+
+        if not self._cache.ayahs:
+
+            raise RuntimeError(
+                "Quran cache empty"
+            )
+
+
+        ayah = random.choice(
+            self._cache.ayahs
+        )
+
+
+        return self._build_ayah_from_item(
+            ayah,
+        )
+
+
+    async def next_ayah(
+        self,
+        current_uuid: str | None = None,
+    ) -> Ayah:
+
+        if not self._cache.ayahs:
+
+            raise RuntimeError(
+                "Quran cache empty"
+            )
+
+
+        if current_uuid is None:
+
+            return await self.random_ayah()
+
+
+        current_ayah = next(
+            (
+                ayah
+                for ayah in self._cache.ayahs
+                if ayah.get("uuid") == current_uuid
+            ),
+            None,
+        )
+
+
+        if current_ayah is None:
+
+            return await self.random_ayah()
+
+
+        metadata = self._get_ayah_metadata(
+            current_ayah,
+        )
+
+
+        current_surah = metadata.get(
+            "surah",
+            0,
+        )
+
+        current_number = metadata.get(
+            "ayah",
+            current_ayah.get(
+                "number",
+                0,
+            ),
+        )
+
+
+        for ayah in self._cache.ayahs:
+
+            if ayah.get("uuid") == current_uuid:
+
+                continue
+
+
+            candidate_metadata = self._get_ayah_metadata(
+                ayah,
+            )
+
+            candidate_surah = candidate_metadata.get(
+                "surah",
+                0,
+            )
+
+            candidate_number = candidate_metadata.get(
+                "ayah",
+                ayah.get(
+                    "number",
+                    0,
+                ),
+            )
+
+            if (
+                candidate_surah == current_surah
+                and candidate_number == current_number + 1
+            ):
+
+                return self._build_ayah_from_item(
+                    ayah,
+                )
+
+
+        current_index = next(
+            index
+            for index, ayah in enumerate(
+                self._cache.ayahs
+            )
+            if ayah.get("uuid") == current_uuid
+        )
+
+
+        next_index = (current_index + 1) % len(
+            self._cache.ayahs
+        )
+
+
+        ayah = self._cache.ayahs[next_index]
+
+
+        return self._build_ayah_from_item(
+            ayah,
         )

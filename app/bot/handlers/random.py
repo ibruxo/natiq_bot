@@ -63,7 +63,7 @@ async def random_ayah(
 
         await update.message.reply_text(
             text=format_ayah(ayah),
-            reply_markup=random_ayah_keyboard(),
+            reply_markup=random_ayah_keyboard(ayah.uuid),
         )
 
 

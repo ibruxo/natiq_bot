@@ -17,6 +17,7 @@ dependencies = [
     "SQLAlchemy>=2.0",
 
     "asyncpg",
+    "psycopg2-binary",
 
     "alembic",
 

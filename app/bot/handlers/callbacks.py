@@ -43,14 +43,23 @@ async def random_ayah_callback(
         )
 
 
+        callback_data = query.data or ""
+
+        current_uuid = None
+
+        if callback_data.startswith("next_ayah:"):
+
+            current_uuid = callback_data.split(":", 1)[1]
+
+
         ayah: Ayah = await (
-            container.provider.random_ayah()
+            container.provider.next_ayah(current_uuid)
         )
 
 
         await query.edit_message_text(
             text=format_ayah(ayah),
-            reply_markup=random_ayah_keyboard(),
+            reply_markup=random_ayah_keyboard(ayah.uuid),
         )
 
 
@@ -72,5 +81,5 @@ def get_callback_handler() -> CallbackQueryHandler:
 
     return CallbackQueryHandler(
         random_ayah_callback,
-        pattern=r"^random_ayah$",
+        pattern=r"^next_ayah(?:\:.*)?$",
     )
