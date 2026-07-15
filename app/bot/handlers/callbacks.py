@@ -18,14 +18,12 @@ from app.bot.handlers.random import format_ayah
 async def _handle_navigation(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
-    *,
-    direction: str,
 ) -> None:
 
     query = update.callback_query
 
 
-    if query is None:
+    if query is None or query.message is None:
 
         return
 
@@ -41,24 +39,17 @@ async def _handle_navigation(
 
 
         callback_data = query.data or ""
-
         current_uuid = None
 
-        if callback_data.startswith(f"{direction}_ayah:"):
+        if callback_data.startswith("next_ayah:"):
 
             current_uuid = callback_data.split(":", 1)[1]
 
 
-        if direction == "next":
-
-            ayah: Ayah = await container.provider.next_ayah(current_uuid)
-
-        else:
-
-            ayah: Ayah = await container.provider.previous_ayah(current_uuid)
+        ayah: Ayah = await container.provider.next_ayah(current_uuid)
 
 
-        await query.edit_message_text(
+        await query.message.reply_text(
             text=format_ayah(ayah),
             reply_markup=random_ayah_keyboard(ayah.uuid),
         )
@@ -72,7 +63,7 @@ async def _handle_navigation(
         )
 
 
-        await query.edit_message_text(
+        await query.message.reply_text(
             "خطا در دریافت آیه."
         )
 
@@ -93,15 +84,6 @@ async def _navigation_callback(
         await _handle_navigation(
             update,
             context,
-            direction="next",
-        )
-
-    elif callback_data.startswith("previous_ayah"):
-
-        await _handle_navigation(
-            update,
-            context,
-            direction="previous",
         )
 
 
@@ -109,5 +91,5 @@ def get_callback_handler() -> CallbackQueryHandler:
 
     return CallbackQueryHandler(
         _navigation_callback,
-        pattern=r"^(next|previous)_ayah(?:\:.*)?$",
+        pattern=r"^next_ayah(?:\:.*)?$",
     )

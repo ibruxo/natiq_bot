@@ -26,7 +26,12 @@ class Database:
 
         try:
             url = make_url(database_url)
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "Failed to parse DATABASE_URL '%s': %s",
+                database_url,
+                exc,
+            )
             url = None
 
         if url and str(url.drivername).startswith("postgresql"):
@@ -71,8 +76,13 @@ class Database:
 
             await session.close()
 
-    async def dispose(self):
+    async def dispose(self) -> None:
 
         await self.engine.dispose()
 
         logger.info("Database disconnected.")
+
+
+    async def close(self) -> None:
+
+        await self.dispose()
