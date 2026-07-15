@@ -12,17 +12,17 @@ from app.database.models.mixins import (
     UUIDMixin,
 )
 
-user_chats = relationship(
-    "UserChat",
-    back_populates="chat",
-    cascade="all, delete-orphan",
-)
-
 class Chat(
     Base,
     UUIDMixin,
     TimestampMixin,
 ):
+
+    user_chats: Mapped[list["UserChat"]] = relationship(
+        "UserChat",
+        back_populates="chat",
+        cascade="all, delete-orphan",
+    )
     __tablename__ = "chats"
 
     id: Mapped[int] = mapped_column(
