@@ -69,6 +69,7 @@ python -m pip install -r requirements-dev.txt
 
 - Use `make lint` and `make format` to run linters and formatters locally.
 - A GitHub Actions CI workflow is included at `.github/workflows/ci.yml`.
+- we also use MakeFile which make it easer to manage, build and debug the project
 
 ## Usage
 
