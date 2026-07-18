@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -98,6 +99,26 @@ class Settings(BaseSettings):
     # Compatibility properties
     # Used by APIClient
     # -------------------------
+
+    @model_validator(mode="after")
+    def validate_settings(self) -> "Settings":
+
+        if not self.BOT_TOKEN.strip():
+            raise ValueError(
+                "BOT_TOKEN must not be empty"
+            )
+
+        if self.NATIQ_API_TIMEOUT <= 0:
+            raise ValueError(
+                "NATIQ_API_TIMEOUT must be greater than zero"
+            )
+
+        if not self.NATIQ_PRIMARY_API.strip():
+            raise ValueError(
+                "NATIQ_PRIMARY_API must not be empty"
+            )
+
+        return self
 
     @property
     def api_headers(self) -> dict[str, str]:

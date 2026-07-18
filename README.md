@@ -42,6 +42,7 @@ Telegram bot for browsing Quran ayahs with fast navigation through the Natiq Qur
 - Python 3.12
 - Telegram bot token
 - Docker (recommended)
+- Environment variables for bot/API/database credentials
 - PostgreSQL database
 - Redis cache
 - Natiq API access
@@ -55,6 +56,7 @@ cp .env.example .env
 ```
 
 2. Update `.env` with your bot token and service configuration.
+   Do not commit real secrets. In Docker deployments, prefer environment-specific values for `BOT_TOKEN`, `POSTGRES_PASSWORD`, and API credentials.
 
 3. Build and start the application:
 

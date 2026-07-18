@@ -81,6 +81,7 @@ async def main():
     container = Container()
 
     application = None
+    polling_started = False
 
 
     try:
@@ -136,13 +137,10 @@ async def main():
             drop_pending_updates=True,
             poll_interval=2.0,
             timeout=30,
-            read_timeout=45,
-            write_timeout=15,
-            connect_timeout=15,
-            pool_timeout=15,
             bootstrap_retries=-1,
         )
 
+        polling_started = True
 
         logger.info(
             "Bot is now polling."
@@ -176,12 +174,13 @@ async def main():
 
             if application:
 
-                if application.updater:
+                if application.updater and polling_started:
 
                     await application.updater.stop()
 
+                if application.running:
 
-                await application.stop()
+                    await application.stop()
 
                 await application.shutdown()
 

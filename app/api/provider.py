@@ -5,6 +5,8 @@ import logging
 import random
 from typing import Any
 
+import httpx
+
 from app.api.client import APIClient
 from app.cache.quran import QuranCache
 from app.core.config import get_settings
@@ -51,7 +53,7 @@ class NatiqProvider:
                     params=params,
                 )
 
-            except Exception as exc:
+            except httpx.HTTPError as exc:
 
                 last_error = exc
 
@@ -341,7 +343,7 @@ class NatiqProvider:
 
             return results
 
-        except Exception as exc:
+        except httpx.HTTPError as exc:
 
             logger.warning(
                 "Translation loading failed: %s",

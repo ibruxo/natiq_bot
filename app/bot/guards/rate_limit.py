@@ -172,7 +172,7 @@ def rate_limit(rule: RateLimitRule):
 
             if context is None and len(args) > 1:
                 candidate_context = args[1]
-                if isinstance(candidate_context, ContextTypes.DEFAULT_TYPE):
+                if hasattr(candidate_context, "bot"):
                     context = candidate_context
 
             if not isinstance(update, Update) or context is None:

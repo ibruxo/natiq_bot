@@ -1,6 +1,6 @@
 import logging
 
-from telegram.ext import Application
+from telegram.ext import Application, ContextTypes
 from telegram.request import HTTPXRequest
 
 from app.api.checker import APIFeatureChecker, MessengerFeature
@@ -9,6 +9,17 @@ from app.core.config import get_settings
 from app.core.container import Container
 
 logger = logging.getLogger(__name__)
+
+
+async def _handle_error(
+    update: object,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    logger.exception(
+        "Telegram update handler failed. update=%s",
+        update,
+        exc_info=context.error,
+    )
 
 
 def create_application(container: Container) -> Application:
@@ -52,6 +63,7 @@ def create_application(container: Container) -> Application:
     )
 
     register_handlers(application)
+    application.add_error_handler(_handle_error)
 
     logger.info("Telegram handlers registered.")
 

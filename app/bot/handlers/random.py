@@ -70,9 +70,17 @@ async def random_ayah(
 
 
         if not container.quran_cache_ready:
-            raise RuntimeError(
-                "Quran cache unavailable"
+            await update.message.reply_text(
+                get_message(
+                    "random_ayah_error",
+                    detect_language(
+                        update.effective_user.language_code
+                        if update.effective_user
+                        else None
+                    ),
+                )
             )
+            return
 
         ayah: Ayah = await (
             container.provider.random_ayah()

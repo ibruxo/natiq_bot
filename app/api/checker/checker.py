@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
+from urllib.parse import urlparse
 
 from app.core.config import Settings, get_settings
 
@@ -78,15 +79,20 @@ class APIFeatureChecker:
         )
 
     def _detect_platform(self) -> MessengerPlatform:
-        bot_api = (self._settings.BOT_API or "").strip().lower()
+        bot_api = (self._settings.BOT_API or "").strip()
 
         if not bot_api:
             return MessengerPlatform.UNKNOWN
 
-        if "telegram" in bot_api:
-            if "bot" in bot_api:
-                return MessengerPlatform.TELEGRAM_BOT_API
+        parsed = urlparse(bot_api)
+        host = (parsed.hostname or "").lower()
+        path = (parsed.path or "").strip("/").lower()
+
+        if host == "api.telegram.org" or host.endswith(".telegram.org"):
             return MessengerPlatform.TELEGRAM
+
+        if "telegram" in host or path.startswith("bot"):
+            return MessengerPlatform.TELEGRAM_BOT_API
 
         return MessengerPlatform.UNKNOWN
 

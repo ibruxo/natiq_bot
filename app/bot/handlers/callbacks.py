@@ -97,9 +97,14 @@ async def _handle_next_ayah(
         ] = language
 
         if not container.quran_cache_ready:
-            raise RuntimeError(
-                "Quran cache unavailable"
+            await query.answer(
+                get_message(
+                    "next_ayah_error",
+                    language,
+                ),
+                show_alert=True,
             )
+            return
 
         ayah: Ayah = await (
             container.provider.next_ayah(
@@ -168,9 +173,14 @@ async def random_ayah_callback(
         ] = language
 
         if not container.quran_cache_ready:
-            raise RuntimeError(
-                "Quran cache unavailable"
+            await query.answer(
+                get_message(
+                    "next_ayah_error",
+                    language,
+                ),
+                show_alert=True,
             )
+            return
 
         ayah: Ayah = await (
             container.provider.random_ayah()
