@@ -25,8 +25,8 @@ def format_ayah(ayah: Ayah) -> str:
         )
 
     text = (
-        f"﴿ {ayah.text} ﴾\n\n"
         f"📖 {surah_title}\n"
+        f"﴿ {ayah.text} ﴾\n\n"
         f"آیه {ayah.ayah_number} | "
         f"سوره {ayah.surah_number}"
     )

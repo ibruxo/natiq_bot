@@ -296,6 +296,7 @@ class NatiqProvider:
                 params={
                     "offset": offset,
                     "limit": limit,
+                    "mushaf": "hafs", 
                 },
             )
 
