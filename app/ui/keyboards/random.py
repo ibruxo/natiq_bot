@@ -1,36 +1,38 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from __future__ import annotations
 
-from app.api.checker import APIFeatureChecker, MessengerFeature
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 
-
-_feature_checker = APIFeatureChecker()
+from app.i18n import get_message
 
 
 def random_ayah_keyboard(
-    ayah_uuid: str | None = None,
-) -> InlineKeyboardMarkup | None:
+    ayah_uuid: str,
+    language: str,
+) -> InlineKeyboardMarkup:
+    """
+    Keyboard for ayah navigation.
 
-    if not _feature_checker.log_if_unsupported(
-        MessengerFeature.INLINE_KEYBOARD,
-        context="random_ayah_keyboard",
-    ):
-        return None
+    Callback format:
 
-    if not _feature_checker.log_if_unsupported(
-        MessengerFeature.CALLBACK_QUERY,
-        context="random_ayah_keyboard",
-    ):
-        return None
+        next_ayah:{ayah_uuid}
+
+    The callback handler uses this UUID
+    to locate the current ayah.
+    """
 
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    text="آیه بعدی ➡️",
-                    callback_data=f"next_ayah:{ayah_uuid}"
-                    if ayah_uuid
-                    else "next_ayah",
+                    text=get_message(
+                        "next_ayah_button",
+                        language,
+                    ),
+                    callback_data=f"next_ayah:{ayah_uuid}",
                 ),
-            ]
+            ],
         ]
     )

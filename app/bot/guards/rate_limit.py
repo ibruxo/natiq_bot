@@ -11,7 +11,7 @@ from typing import Protocol
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from app.cache.redis import RedisCache
+from app.i18n import detect_language, get_message
 
 
 class SupportsRateLimitIncrement(Protocol):
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class RateLimitRule:
     limit: int
     window_seconds: int
-    message: str = "لطفاً کمی صبر کنید و دوباره تلاش کنید."
+    message: str | None = None
 
 
 class InMemoryRateLimiter:
@@ -166,10 +166,14 @@ def rate_limit(rule: RateLimitRule):
             context = kwargs.get("context")
 
             if update is None and args:
-                update = args[0]
+                candidate_update = args[0]
+                if isinstance(candidate_update, Update):
+                    update = candidate_update
 
             if context is None and len(args) > 1:
-                context = args[1]
+                candidate_context = args[1]
+                if isinstance(candidate_context, ContextTypes.DEFAULT_TYPE):
+                    context = candidate_context
 
             if not isinstance(update, Update) or context is None:
                 result = func(*args, **kwargs)
@@ -177,7 +181,10 @@ def rate_limit(rule: RateLimitRule):
                     return await result
                 return result
 
-            actor_key = _resolve_actor_key(update)
+            typed_update: Update = update
+            typed_context = context
+
+            actor_key = _resolve_actor_key(typed_update)
 
             if actor_key is None:
                 result = func(*args, **kwargs)
@@ -192,10 +199,21 @@ def rate_limit(rule: RateLimitRule):
             )
 
             if not allowed:
+                language = detect_language(
+                    typed_update.effective_user.language_code
+                    if typed_update.effective_user
+                    else None
+                )
+
+                message = rule.message or get_message(
+                    "rate_limited",
+                    language,
+                )
+
                 await _reply_rate_limited(
-                    update,
-                    context,
-                    rule.message,
+                    typed_update,
+                    typed_context,
+                    message,
                 )
                 return None
 

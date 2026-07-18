@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.bot.guards.rate_limit import RateLimitRule, rate_limit
+from app.i18n import detect_language, get_message
 
 
 logger = logging.getLogger(__name__)
@@ -27,10 +28,17 @@ async def start(
         return
 
 
+    language = detect_language(
+        update.effective_user.language_code
+        if update.effective_user
+        else None
+    )
+
     await update.message.reply_text(
-        "بسم الله الرحمن الرحیم\n\n"
-        "ربات قرآن ناطق آماده است.\n\n"
-        "برای دریافت آیه تصادفی از دستور /random استفاده کنید."
+        get_message(
+            "start",
+            language,
+        )
     )
 
 

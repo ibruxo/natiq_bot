@@ -16,14 +16,16 @@ Telegram bot for browsing Quran ayahs with fast navigation through the Natiq Qur
 
 ## Overview
 
-`Quran Bot` is a Telegram bot that sends Quran ayahs and translations on demand. It supports random ayah delivery and sequential navigation using a dedicated "Next Ayah" button.
+`Quran Bot` is a Telegram-compatible Quran bot that sends Quran ayahs and translations on demand. It currently supports random ayah delivery and sequential navigation using a dedicated inline "Next Ayah" button that replies with a new message.
 
 ## Features
 
 - Send a random Quran ayah with translation
+- Send a styled ayah message with surah name, ayah text, translation, and bot signature
 - Navigate to the next ayah using a single inline button
-- Preserve previous messages while sending the next ayah in a new message
+- Preserve previous messages while sending the next ayah in a new reply message
 - Modular architecture for bot handlers, API provider, and UI keyboards
+- Environment-driven platform and language configuration
 
 ## Tech Stack
 
@@ -42,6 +44,7 @@ Telegram bot for browsing Quran ayahs with fast navigation through the Natiq Qur
 - Docker (recommended)
 - PostgreSQL database
 - Redis cache
+- Natiq API access
 
 ## Installation
 
@@ -91,7 +94,7 @@ The current migration includes UUID column normalization for:
 ## Usage
 
 - Use `/random` in Telegram to receive a random Quran ayah.
-- Press the `Next Ayah` inline button to fetch the next ayah in a new message.
+- Press the `آیه بعدی` inline button to fetch the next ayah in a new reply message.
 
 ## Project Structure
 

@@ -10,21 +10,30 @@ class QuranCache:
     """
     In-memory Quran cache.
 
-    Stores both raw collections and lookup dictionaries so
-    the provider never has to iterate over thousands of items
-    for every random ayah.
+    Stores raw API data and optimized lookup maps.
+
+    Relationships:
+
+    Ayah UUID
+        ↓
+    Takhtit metadata
+        ↓
+    Surah number / UUID
+        ↓
+    Surah information
     """
 
     def __init__(self) -> None:
 
-        # Raw data
+        # Raw collections
 
         self.ayahs: list[dict[str, Any]] = []
         self.takhtits: list[dict[str, Any]] = []
         self.translations: list[dict[str, Any]] = []
         self.surahs: list[dict[str, Any]] = []
 
-        # Lookup tables
+
+        # Lookup maps
 
         self.ayah_map: dict[str, dict[str, Any]] = {}
 
@@ -32,13 +41,17 @@ class QuranCache:
 
         self.translation_map: dict[str, dict[str, Any]] = {}
 
+
+        # Surah lookups
+
         self.surah_map: dict[int, dict[str, Any]] = {}
+
         self.surah_uuid_map: dict[str, dict[str, Any]] = {}
 
 
-    # --------------------------------------------------
+    # ==================================================
     # Ayahs
-    # --------------------------------------------------
+    # ==================================================
 
     def set_ayahs(
         self,
@@ -55,13 +68,13 @@ class QuranCache:
 
         logger.info(
             "Cached %s ayahs",
-            len(items),
+            len(self.ayahs),
         )
 
 
-    # --------------------------------------------------
+    # ==================================================
     # Takhtits
-    # --------------------------------------------------
+    # ==================================================
 
     def set_takhtits(
         self,
@@ -78,13 +91,13 @@ class QuranCache:
 
         logger.info(
             "Cached %s takhtits",
-            len(items),
+            len(self.takhtits),
         )
 
 
-    # --------------------------------------------------
+    # ==================================================
     # Translations
-    # --------------------------------------------------
+    # ==================================================
 
     def set_translations(
         self,
@@ -101,13 +114,13 @@ class QuranCache:
 
         logger.info(
             "Cached %s translations",
-            len(items),
+            len(self.translations),
         )
 
 
-    # --------------------------------------------------
+    # ==================================================
     # Surahs
-    # --------------------------------------------------
+    # ==================================================
 
     def set_surahs(
         self,
@@ -116,19 +129,42 @@ class QuranCache:
 
         self.surahs = items
 
-        self.surah_map = {
-            item["number"]: item
-            for item in items
-            if item.get("number") is not None
-        }
 
-        self.surah_uuid_map = {
-            item["uuid"]: item
-            for item in items
-            if item.get("uuid")
-        }
+        self.surah_map = {}
+
+        self.surah_uuid_map = {}
+
+
+        for surah in items:
+
+            number = surah.get("number")
+
+            uuid = surah.get("uuid")
+
+
+            if number is not None:
+
+                self.surah_map[int(number)] = surah
+
+
+            if uuid:
+
+                self.surah_uuid_map[str(uuid)] = surah
+
+
 
         logger.info(
             "Cached %s surahs",
-            len(items),
+            len(self.surahs),
+        )
+
+
+        logger.info(
+            "Surah number map: %s",
+            len(self.surah_map),
+        )
+
+        logger.info(
+            "Surah UUID map: %s",
+            len(self.surah_uuid_map),
         )

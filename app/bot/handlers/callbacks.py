@@ -3,40 +3,68 @@ from __future__ import annotations
 import logging
 
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,
 )
 
-from app.bot.guards.rate_limit import RateLimitRule, rate_limit
-from app.core.container import Container
-from app.schemas.ayah import Ayah
-from app.ui.keyboards import random_ayah_keyboard
-
 from app.bot.handlers.random import format_ayah
+from app.core.container import Container
+from app.i18n import detect_language, get_message
+from app.schemas.ayah import Ayah
+from app.ui.keyboards.random import random_ayah_keyboard
 
 
-@rate_limit(
-    RateLimitRule(
-        limit=8,
-        window_seconds=20,
+logger = logging.getLogger(__name__)
+
+
+async def _reply_with_ayah(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    ayah: Ayah,
+    language: str,
+) -> None:
+
+    query = update.callback_query
+
+    if query is None:
+        return
+
+    message = query.message
+
+    if message is None:
+        return
+
+    context.user_data[
+        "current_ayah_uuid"
+    ] = ayah.uuid
+
+    await message.reply_text(
+        text=format_ayah(
+            ayah,
+            language,
+        ),
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=random_ayah_keyboard(
+            ayah.uuid,
+            language,
+        ),
+        reply_to_message_id=message.message_id,
     )
-)
-async def _handle_navigation(
+
+
+async def _handle_next_ayah(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
 
     query = update.callback_query
 
-
-    if query is None or query.message is None:
-
+    if query is None:
         return
 
-
     await query.answer()
-
 
     try:
 
@@ -44,59 +72,131 @@ async def _handle_navigation(
             context.application.bot_data["container"]
         )
 
-
-        callback_data = query.data or ""
-        current_uuid = None
-
-        if callback_data.startswith("next_ayah:"):
-
-            current_uuid = callback_data.split(":", 1)[1]
-
-
-        ayah: Ayah = await container.provider.next_ayah(current_uuid)
-
-
-        await query.message.reply_text(
-            text=format_ayah(ayah),
-            reply_markup=random_ayah_keyboard(ayah.uuid),
+        current_uuid = context.user_data.get(
+            "current_ayah_uuid"
         )
 
+        language = detect_language(
+            update.effective_user.language_code
+            if update.effective_user
+            else context.user_data.get(
+                "bot_language"
+            )
+        )
 
-    except Exception as exc:
+        context.user_data[
+            "bot_language"
+        ] = language
+
+        ayah: Ayah = await (
+            container.provider.next_ayah(
+                current_uuid=current_uuid,
+            )
+        )
+
+        await _reply_with_ayah(
+            update,
+            context,
+            ayah,
+            language,
+        )
+
+    except Exception:
 
         logger.exception(
-            "Ayah navigation failed: %s",
-            exc,
+            "Next ayah callback failed"
+        )
+
+        language = detect_language(
+            update.effective_user.language_code
+            if update.effective_user
+            else context.user_data.get(
+                "bot_language"
+            )
+        )
+
+        await query.answer(
+            get_message(
+                "next_ayah_error",
+                language,
+            ),
+            show_alert=True,
         )
 
 
-        await query.message.reply_text(
-            "خطا در دریافت آیه."
-        )
-
-
-logger = logging.getLogger(__name__)
-
-
-
-async def _navigation_callback(
+async def random_ayah_callback(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
 
-    callback_data = update.callback_query.data if update.callback_query else ""
+    query = update.callback_query
 
-    if callback_data.startswith("next_ayah"):
+    if query is None:
+        return
 
-        await _handle_navigation(
+    await query.answer()
+
+    try:
+
+        container: Container = (
+            context.application.bot_data["container"]
+        )
+
+        language = detect_language(
+            update.effective_user.language_code
+            if update.effective_user
+            else context.user_data.get(
+                "bot_language"
+            )
+        )
+
+        context.user_data[
+            "bot_language"
+        ] = language
+
+        ayah: Ayah = await (
+            container.provider.random_ayah()
+        )
+
+        await _reply_with_ayah(
             update,
             context,
+            ayah,
+            language,
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Random ayah callback failed"
+        )
+
+        language = detect_language(
+            update.effective_user.language_code
+            if update.effective_user
+            else context.user_data.get(
+                "bot_language"
+            )
+        )
+
+        await query.answer(
+            get_message(
+                "next_ayah_error",
+                language,
+            ),
+            show_alert=True,
         )
 
 
-def get_callback_handler() -> CallbackQueryHandler:
+def get_callback_handlers() -> list[CallbackQueryHandler]:
 
-    return CallbackQueryHandler(
-        _navigation_callback,
-        pattern=r"^next_ayah(?:\:.*)?$",
-    )
+    return [
+        CallbackQueryHandler(
+            random_ayah_callback,
+            pattern=r"^random_ayah$",
+        ),
+        CallbackQueryHandler(
+            _handle_next_ayah,
+            pattern=r"^next_ayah:",
+        ),
+    ]

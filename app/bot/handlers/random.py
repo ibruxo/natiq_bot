@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.bot.guards.rate_limit import RateLimitRule, rate_limit
 from app.core.container import Container
+from app.i18n import detect_language, get_message
 from app.schemas.ayah import Ayah
 from app.ui.keyboards import random_ayah_keyboard
 
@@ -14,34 +16,30 @@ from app.ui.keyboards import random_ayah_keyboard
 logger = logging.getLogger(__name__)
 
 
-def format_ayah(ayah: Ayah) -> str:
+def format_ayah(
+    ayah: Ayah,
+    language: str,
+) -> str:
 
-    surah_title = ayah.surah_name
-
-    if ayah.surah_icon:
-
-        surah_title = (
-            f"{surah_title} {ayah.surah_icon}"
-        )
-
-    text = (
-        f"📖 {surah_title}\n"
-        f"﴿ {ayah.text} ﴾\n\n"
-        f"آیه {ayah.ayah_number} | "
-        f"سوره {ayah.surah_number}"
+    surah_label = get_message(
+        "surah_label",
+        language,
     )
 
+    translation_line = ""
 
     if ayah.translation:
-
-        text += (
-            "\n\n"
-            "ترجمه:\n"
-            f"{ayah.translation}"
+        translation_line = (
+            f"{get_message('translation_label', language)} "
+            f"{ayah.translation} ({ayah.ayah_number})\n\n"
         )
 
-
-    return text
+    return (
+        f"{ayah.surah_icon} *{surah_label} {ayah.surah_name}*\n\n"
+        f"📖 *{ayah.text} ﴿{ayah.ayah_number}﴾*\n\n"
+        f"{translation_line}"
+        "@NatiqBot"
+    )
 
 
 
@@ -75,10 +73,30 @@ async def random_ayah(
             container.provider.random_ayah()
         )
 
+        language = detect_language(
+            update.effective_user.language_code
+            if update.effective_user
+            else None
+        )
+
+        context.user_data[
+            "bot_language"
+        ] = language
+
+        context.user_data[
+            "current_ayah_uuid"
+        ] = ayah.uuid
 
         await update.message.reply_text(
-            text=format_ayah(ayah),
-            reply_markup=random_ayah_keyboard(ayah.uuid),
+            text=format_ayah(
+                ayah,
+                language,
+            ),
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=random_ayah_keyboard(
+                ayah.uuid,
+                language,
+            ),
         )
 
 
@@ -90,8 +108,17 @@ async def random_ayah(
         )
 
 
+        language = detect_language(
+            update.effective_user.language_code
+            if update.effective_user
+            else None
+        )
+
         await update.message.reply_text(
-            "خطا در دریافت آیه."
+            get_message(
+                "random_ayah_error",
+                language,
+            )
         )
 
 
