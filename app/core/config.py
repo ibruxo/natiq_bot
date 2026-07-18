@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 
 from pydantic import model_validator
@@ -103,11 +104,6 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_settings(self) -> "Settings":
 
-        if not self.BOT_TOKEN.strip():
-            raise ValueError(
-                "BOT_TOKEN must not be empty"
-            )
-
         if self.NATIQ_API_TIMEOUT <= 0:
             raise ValueError(
                 "NATIQ_API_TIMEOUT must be greater than zero"
@@ -152,3 +148,15 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
 
     return Settings()
+
+
+def validate_runtime_settings() -> Settings:
+
+    settings = get_settings()
+
+    if not settings.BOT_TOKEN.strip():
+        raise ValueError(
+            "BOT_TOKEN must not be empty"
+        )
+
+    return settings

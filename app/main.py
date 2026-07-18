@@ -6,7 +6,7 @@ import logging
 import httpx
 
 from app.bot.application import create_application
-from app.core.config import get_settings
+from app.core.config import get_settings, validate_runtime_settings
 from app.core.container import Container
 from app.core.logging import configure_logging
 
@@ -70,7 +70,7 @@ async def main():
 
     configure_logging()
 
-    settings = get_settings()
+    settings = validate_runtime_settings()
 
 
     logger.info(

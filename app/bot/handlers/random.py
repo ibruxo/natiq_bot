@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def format_ayah(
     ayah: Ayah,
-    language: str,
+    language: str = "fa",
 ) -> str:
 
     surah_label = get_message(
@@ -34,12 +34,30 @@ def format_ayah(
             f"{ayah.translation} ({ayah.ayah_number})\n\n"
         )
 
-    return (
-        f"{ayah.surah_icon} *{surah_label} {ayah.surah_name}*\n\n"
-        f"📖 *{ayah.text} ﴿{ayah.ayah_number}﴾*\n\n"
-        f"{translation_line}"
-        "@NatiqBot"
+    title = f"{ayah.surah_name} {ayah.surah_icon}".strip()
+
+    if language == "fa":
+        return (
+            f"{ayah.surah_icon} *{surah_label} {ayah.surah_name}*\n\n"
+            f"📖 *{ayah.text} ﴿{ayah.ayah_number}﴾*\n\n"
+            f"{translation_line}"
+            "@NatiqBot"
+        )
+
+    text = (
+        f"📖 {title}\n"
+        f"﴿ {ayah.text} ﴾\n\n"
+        f"آیه {ayah.ayah_number} | سوره {ayah.surah_number}"
     )
+
+    if ayah.translation:
+        text += (
+            "\n\n"
+            "ترجمه:\n"
+            f"{ayah.translation}"
+        )
+
+    return text
 
 
 
