@@ -55,12 +55,6 @@ def create_application(container: Container) -> Application:
 
     application.bot_data["container"] = container
     application.bot_data["feature_checker"] = feature_checker
-    application.bot_data["supports_inline_keyboard"] = feature_checker.supports(
-        MessengerFeature.INLINE_KEYBOARD
-    )
-    application.bot_data["supports_callback_query"] = feature_checker.supports(
-        MessengerFeature.CALLBACK_QUERY
-    )
 
     register_handlers(application)
     application.add_error_handler(_handle_error)

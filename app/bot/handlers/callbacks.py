@@ -40,16 +40,10 @@ async def _reply_with_ayah(
         "current_ayah_uuid"
     ] = ayah.uuid
 
-    reply_markup = None
-
-    if context.application.bot_data.get(
-        "supports_inline_keyboard",
-        False,
-    ):
-        reply_markup = random_ayah_keyboard(
-            ayah.uuid,
-            language,
-        )
+    reply_markup = random_ayah_keyboard(
+        ayah.uuid,
+        language,
+    )
 
     await message.reply_text(
         text=format_ayah(
