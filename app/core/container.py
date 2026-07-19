@@ -5,13 +5,10 @@ import logging
 from app.api.client import APIClient
 from app.api.provider import NatiqProvider
 from app.bot.guards.rate_limit import configure_rate_limiter
-
-from app.cache.quran import QuranCache
 from app.cache.loader import QuranCacheLoader
+from app.cache.quran import QuranCache
 from app.cache.redis import RedisCache
-
 from app.database.session import Database
-
 
 logger = logging.getLogger(__name__)
 
@@ -29,105 +26,61 @@ class Container:
     - Cache loading
     """
 
-
     def __init__(self) -> None:
-
-        # Database
         self._database = Database()
-
-
-        # Redis
         self._redis = RedisCache()
-
-
-        # Quran memory cache
         self._cache = QuranCache()
-
-
-        # HTTP API client
         self._http = APIClient()
-
-
-        # Quran API provider
         self._provider = NatiqProvider(
             client=self._http,
             cache=self._cache,
         )
-
-
-        # Cache loader
         self._loader = QuranCacheLoader(
             provider=self._provider,
             cache=self._cache,
         )
-
         self._quran_cache_ready = False
 
-        logger.info(
-            "Container initialized."
-        )
-
-
-    # --------------------------------------------------
-    # Properties
-    # --------------------------------------------------
+        logger.info("Container initialized.")
 
     @property
     def database(self) -> Database:
         return self._database
 
-
     @property
     def redis(self) -> RedisCache:
         return self._redis
-
 
     @property
     def cache(self) -> QuranCache:
         return self._cache
 
-
     @property
     def http(self) -> APIClient:
         return self._http
-
 
     @property
     def provider(self) -> NatiqProvider:
         return self._provider
 
-
     @property
     def loader(self) -> QuranCacheLoader:
         return self._loader
-
 
     @property
     def quran_cache_ready(self) -> bool:
         return self._quran_cache_ready
 
-
-    # --------------------------------------------------
-    # Lifecycle
-    # --------------------------------------------------
-
     async def startup(self) -> None:
         """
         Initialize all services.
         """
-
-
-        # Database
         if hasattr(self._database, "connect"):
             await self._database.connect()
 
-
-        # Redis
         if hasattr(self._redis, "connect"):
             await self._redis.connect()
 
-
-        # Load Quran data
         self._quran_cache_ready = await self._loader.load()
 
         if not self._quran_cache_ready:
@@ -135,41 +88,23 @@ class Container:
                 "Quran cache is unavailable. Bot will start with Quran features degraded."
             )
 
-        configure_rate_limiter(
-            self._redis,
-        )
+        configure_rate_limiter(self._redis)
 
-        logger.info(
-            "Container startup completed."
-        )
-
-
+        logger.info("Container startup completed.")
 
     async def shutdown(self) -> None:
         """
         Gracefully close services.
         """
-
-
-        # HTTP
         if hasattr(self._http, "close"):
             await self._http.close()
 
-
-        # Database
         if hasattr(self._database, "close"):
             await self._database.close()
 
+        configure_rate_limiter(None)
 
-        configure_rate_limiter(
-            None,
-        )
-
-        # Redis
         if hasattr(self._redis, "close"):
             await self._redis.close()
 
-
-        logger.info(
-            "Container shutdown completed."
-        )
+        logger.info("Container shutdown completed.")

@@ -22,6 +22,7 @@ class SupportsRateLimitIncrement(Protocol):
         window_seconds: int,
     ) -> int: ...
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,10 +59,7 @@ class InMemoryRateLimiter:
 
 
 class RedisRateLimiter:
-    def __init__(
-        self,
-        redis_cache: SupportsRateLimitIncrement,
-    ) -> None:
+    def __init__(self, redis_cache: SupportsRateLimitIncrement) -> None:
         self._redis_cache: SupportsRateLimitIncrement = redis_cache
 
     async def is_allowed(
@@ -91,9 +89,7 @@ def configure_rate_limiter(
         _redis_rate_limiter = None
         return
 
-    _redis_rate_limiter = RedisRateLimiter(
-        redis_cache,
-    )
+    _redis_rate_limiter = RedisRateLimiter(redis_cache)
 
 
 def _resolve_actor_key(update: Update) -> str | None:

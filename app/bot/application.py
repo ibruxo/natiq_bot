@@ -36,20 +36,11 @@ def create_application(container: Container) -> Application:
         http_version="1.1",
     )
 
-    builder = (
-        Application.builder()
-        .token(settings.BOT_TOKEN)
-        .request(request)
-    )
+    builder = Application.builder().token(settings.BOT_TOKEN).request(request)
 
     if settings.BOT_API:
         api = settings.BOT_API.rstrip("/")
-
-        builder = (
-            builder
-            .base_url(f"{api}/bot")
-            .base_file_url(f"{api}/file/bot")
-        )
+        builder = builder.base_url(f"{api}/bot").base_file_url(f"{api}/file/bot")
 
     application = builder.build()
 

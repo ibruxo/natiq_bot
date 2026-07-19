@@ -4,17 +4,13 @@ import logging
 
 from telegram import Update
 from telegram.constants import ParseMode
-from telegram.ext import (
-    CallbackQueryHandler,
-    ContextTypes,
-)
+from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from app.bot.handlers.random import format_ayah
 from app.core.container import Container
 from app.i18n import detect_language, get_message
 from app.schemas.ayah import Ayah
 from app.ui.keyboards.random import random_ayah_keyboard
-
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +21,6 @@ async def _reply_with_ayah(
     ayah: Ayah,
     language: str,
 ) -> None:
-
     query = update.callback_query
 
     if query is None:
@@ -36,9 +31,7 @@ async def _reply_with_ayah(
     if message is None:
         return
 
-    context.user_data[
-        "current_ayah_uuid"
-    ] = ayah.uuid
+    context.user_data["current_ayah_uuid"] = ayah.uuid
 
     reply_markup = random_ayah_keyboard(
         ayah.uuid,
@@ -60,7 +53,6 @@ async def _handle_next_ayah(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-
     query = update.callback_query
 
     if query is None:
@@ -69,26 +61,16 @@ async def _handle_next_ayah(
     await query.answer()
 
     try:
-
-        container: Container = (
-            context.application.bot_data["container"]
-        )
-
-        current_uuid = context.user_data.get(
-            "current_ayah_uuid"
-        )
+        container: Container = context.application.bot_data["container"]
+        current_uuid = context.user_data.get("current_ayah_uuid")
 
         language = detect_language(
             update.effective_user.language_code
             if update.effective_user
-            else context.user_data.get(
-                "bot_language"
-            )
+            else context.user_data.get("bot_language")
         )
 
-        context.user_data[
-            "bot_language"
-        ] = language
+        context.user_data["bot_language"] = language
 
         if not container.quran_cache_ready:
             await query.answer(
@@ -100,10 +82,8 @@ async def _handle_next_ayah(
             )
             return
 
-        ayah: Ayah = await (
-            container.provider.next_ayah(
-                current_uuid=current_uuid,
-            )
+        ayah: Ayah = await container.provider.next_ayah(
+            current_uuid=current_uuid,
         )
 
         await _reply_with_ayah(
@@ -114,17 +94,12 @@ async def _handle_next_ayah(
         )
 
     except Exception:
-
-        logger.exception(
-            "Next ayah callback failed"
-        )
+        logger.exception("Next ayah callback failed")
 
         language = detect_language(
             update.effective_user.language_code
             if update.effective_user
-            else context.user_data.get(
-                "bot_language"
-            )
+            else context.user_data.get("bot_language")
         )
 
         await query.answer(
@@ -140,7 +115,6 @@ async def random_ayah_callback(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-
     query = update.callback_query
 
     if query is None:
@@ -149,22 +123,15 @@ async def random_ayah_callback(
     await query.answer()
 
     try:
-
-        container: Container = (
-            context.application.bot_data["container"]
-        )
+        container: Container = context.application.bot_data["container"]
 
         language = detect_language(
             update.effective_user.language_code
             if update.effective_user
-            else context.user_data.get(
-                "bot_language"
-            )
+            else context.user_data.get("bot_language")
         )
 
-        context.user_data[
-            "bot_language"
-        ] = language
+        context.user_data["bot_language"] = language
 
         if not container.quran_cache_ready:
             await query.answer(
@@ -176,9 +143,7 @@ async def random_ayah_callback(
             )
             return
 
-        ayah: Ayah = await (
-            container.provider.random_ayah()
-        )
+        ayah: Ayah = await container.provider.random_ayah()
 
         await _reply_with_ayah(
             update,
@@ -188,17 +153,12 @@ async def random_ayah_callback(
         )
 
     except Exception:
-
-        logger.exception(
-            "Random ayah callback failed"
-        )
+        logger.exception("Random ayah callback failed")
 
         language = detect_language(
             update.effective_user.language_code
             if update.effective_user
-            else context.user_data.get(
-                "bot_language"
-            )
+            else context.user_data.get("bot_language")
         )
 
         await query.answer(
@@ -211,7 +171,6 @@ async def random_ayah_callback(
 
 
 def get_callback_handlers() -> list[CallbackQueryHandler]:
-
     return [
         CallbackQueryHandler(
             random_ayah_callback,

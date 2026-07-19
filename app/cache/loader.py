@@ -7,7 +7,6 @@ import httpx
 from app.api.provider import NatiqProvider
 from app.cache.quran import QuranCache
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -31,16 +30,11 @@ class QuranCacheLoader:
         provider: NatiqProvider,
         cache: QuranCache,
     ) -> None:
-
         self._provider = provider
         self._cache = cache
 
-
     async def load(self) -> bool:
-
-        logger.info(
-            "Loading Quran cache..."
-        )
+        logger.info("Loading Quran cache...")
 
         try:
             await self._load_ayahs()
@@ -48,102 +42,40 @@ class QuranCacheLoader:
             await self._load_translations()
             await self._load_surahs()
         except (httpx.HTTPError, RuntimeError) as exc:
-            logger.exception(
-                "Quran cache loading failed: %s",
-                exc,
-            )
+            logger.exception("Quran cache loading failed: %s", exc)
             return False
 
-        logger.info(
-            "Quran cache loaded successfully."
-        )
-
+        logger.info("Quran cache loaded successfully.")
         return True
 
-
-    # --------------------------------------------------
-    # Ayahs
-    # --------------------------------------------------
-
-    async def _load_ayahs(
-        self,
-    ) -> None:
-
+    async def _load_ayahs(self) -> None:
         ayahs = await self._provider.list_ayahs()
-
-        self._cache.set_ayahs(
-            ayahs,
-        )
+        self._cache.set_ayahs(ayahs)
 
         if len(ayahs) != 6236:
+            logger.warning("Unexpected ayah count: %s", len(ayahs))
 
-            logger.warning(
-                "Unexpected ayah count: %s",
-                len(ayahs),
-            )
-
-
-    # --------------------------------------------------
-    # Takhtits
-    # --------------------------------------------------
-
-    async def _load_takhtits(
-        self,
-    ) -> None:
-
+    async def _load_takhtits(self) -> None:
         takhtits = await self._provider.list_takhtits()
-
-        self._cache.set_takhtits(
-            takhtits,
-        )
+        self._cache.set_takhtits(takhtits)
 
         if len(takhtits) != len(self._cache.ayahs):
-
             logger.warning(
                 "Takhtit count (%s) does not match ayah count (%s).",
                 len(takhtits),
                 len(self._cache.ayahs),
             )
 
-
-    # --------------------------------------------------
-    # Translations
-    # --------------------------------------------------
-
-    async def _load_translations(
-        self,
-    ) -> None:
-
+    async def _load_translations(self) -> None:
         translations = await self._provider.list_translations()
-
-        self._cache.set_translations(
-            translations,
-        )
+        self._cache.set_translations(translations)
 
         if not translations:
+            logger.warning("No translations were loaded.")
 
-            logger.warning(
-                "No translations were loaded."
-            )
-
-
-    # --------------------------------------------------
-    # Surahs
-    # --------------------------------------------------
-
-    async def _load_surahs(
-        self,
-    ) -> None:
-
+    async def _load_surahs(self) -> None:
         surahs = await self._provider.list_surahs()
-
-        self._cache.set_surahs(
-            surahs,
-        )
+        self._cache.set_surahs(surahs)
 
         if len(surahs) != 114:
-
-            logger.warning(
-                "Unexpected surah count: %s",
-                len(surahs),
-            )
+            logger.warning("Unexpected surah count: %s", len(surahs))

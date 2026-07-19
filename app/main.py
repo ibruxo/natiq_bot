@@ -10,31 +10,24 @@ from app.core.config import validate_runtime_settings
 from app.core.container import Container
 from app.core.logging import configure_logging
 
-
 logger = logging.getLogger(__name__)
-
 
 
 async def check_bot_api(
     url: str,
     retries: int = 5,
 ) -> None:
-
     timeout = httpx.Timeout(
         10.0,
         connect=5.0,
     )
 
-
     async with httpx.AsyncClient(
         timeout=timeout,
         follow_redirects=True,
     ) as client:
-
         for attempt in range(1, retries + 1):
-
             try:
-
                 response = await client.get(url)
 
                 logger.info(
@@ -47,7 +40,6 @@ async def check_bot_api(
                     return
 
             except httpx.HTTPError as exc:
-
                 logger.warning(
                     "Bot API connection failed (%s/%s): %s",
                     attempt,
@@ -55,83 +47,45 @@ async def check_bot_api(
                     exc,
                 )
 
-            await asyncio.sleep(
-                attempt * 2
-            )
+            await asyncio.sleep(attempt * 2)
+
+    raise RuntimeError("Bot API unavailable after retries")
 
 
-    raise RuntimeError(
-        "Bot API unavailable after retries"
-    )
-
-
-
-async def main():
-
+async def main() -> None:
     configure_logging()
 
     settings = validate_runtime_settings()
 
-
-    logger.info(
-        "Starting Quran Bot..."
-    )
-
+    logger.info("Starting Quran Bot...")
 
     container = Container()
-
     application = None
     polling_started = False
 
-
     try:
-
         await container.startup()
 
-
-        logger.info(
-            "All services initialized."
-        )
-
+        logger.info("All services initialized.")
 
         if settings.BOT_API:
             try:
-                await check_bot_api(
-                    settings.BOT_API
-                )
+                await check_bot_api(settings.BOT_API)
             except Exception:
                 logger.warning(
                     "Bot API preflight check failed; continuing to initialize polling."
                 )
 
+        application = create_application(container)
 
-        application = create_application(
-            container
-        )
-
-
-        logger.info(
-            "Initializing Telegram application..."
-        )
-
-
+        logger.info("Initializing Telegram application...")
         await application.initialize()
 
-
-        logger.info(
-            "Starting Telegram application..."
-        )
-
-
+        logger.info("Starting Telegram application...")
         await application.start()
 
-
         if application.updater is None:
-
-            raise RuntimeError(
-                "Updater is not available"
-            )
-
+            raise RuntimeError("Updater is not available")
 
         await application.updater.start_polling(
             drop_pending_updates=True,
@@ -142,62 +96,32 @@ async def main():
 
         polling_started = True
 
-        logger.info(
-            "Bot is now polling."
-        )
-
+        logger.info("Bot is now polling.")
 
         while True:
-
-            await asyncio.sleep(
-                3600
-            )
-
+            await asyncio.sleep(3600)
 
     except KeyboardInterrupt:
-
-        logger.info(
-            "Stopping bot..."
-        )
-
+        logger.info("Stopping bot...")
 
     except Exception:
-
-        logger.exception(
-            "Fatal application error"
-        )
-
+        logger.exception("Fatal application error")
 
     finally:
-
         try:
-
             if application:
-
                 if application.updater and polling_started:
-
                     await application.updater.stop()
 
                 if application.running:
-
                     await application.stop()
 
                 await application.shutdown()
-
-
         finally:
-
             await container.shutdown()
 
-
-        logger.info(
-            "Shutdown complete."
-        )
-
+        logger.info("Shutdown complete.")
 
 
 if __name__ == "__main__":
-
-    asyncio.run(
-        main()
-    )
+    asyncio.run(main())

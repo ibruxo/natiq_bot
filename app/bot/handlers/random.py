@@ -12,7 +12,6 @@ from app.i18n import detect_language, get_message
 from app.schemas.ayah import Ayah
 from app.ui.keyboards import random_ayah_keyboard
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -20,12 +19,7 @@ def format_ayah(
     ayah: Ayah,
     language: str = "fa",
 ) -> str:
-
-    surah_label = get_message(
-        "surah_label",
-        language,
-    )
-
+    surah_label = get_message("surah_label", language)
     translation_line = ""
 
     if ayah.translation:
@@ -37,8 +31,9 @@ def format_ayah(
     title = f"{ayah.surah_name} {ayah.surah_icon}".strip()
 
     if language == "fa":
+        surah_title = f"{ayah.surah_icon} *{surah_label} {ayah.surah_name}*".strip()
         return (
-            f"{ayah.surah_icon} *{surah_label} {ayah.surah_name}*\n\n"
+            f"{surah_title}\n\n"
             f"📖 *{ayah.text} ﴿{ayah.ayah_number}﴾*\n\n"
             f"{translation_line}"
             "@NatiqBot"
@@ -51,14 +46,9 @@ def format_ayah(
     )
 
     if ayah.translation:
-        text += (
-            "\n\n"
-            "ترجمه:\n"
-            f"{ayah.translation}"
-        )
+        text += "\n\nترجمه:\n" f"{ayah.translation}"
 
     return text
-
 
 
 @rate_limit(
@@ -74,18 +64,11 @@ async def random_ayah(
     """
     Send a random Quran ayah.
     """
-
     if not update.message:
-
         return
 
-
     try:
-
-        container: Container = (
-            context.application.bot_data["container"]
-        )
-
+        container: Container = context.application.bot_data["container"]
 
         if not container.quran_cache_ready:
             await update.message.reply_text(
@@ -100,23 +83,14 @@ async def random_ayah(
             )
             return
 
-        ayah: Ayah = await (
-            container.provider.random_ayah()
-        )
+        ayah: Ayah = await container.provider.random_ayah()
 
         language = detect_language(
-            update.effective_user.language_code
-            if update.effective_user
-            else None
+            update.effective_user.language_code if update.effective_user else None
         )
 
-        context.user_data[
-            "bot_language"
-        ] = language
-
-        context.user_data[
-            "current_ayah_uuid"
-        ] = ayah.uuid
+        context.user_data["bot_language"] = language
+        context.user_data["current_ayah_uuid"] = ayah.uuid
 
         reply_markup = random_ayah_keyboard(
             ayah.uuid,
@@ -132,32 +106,17 @@ async def random_ayah(
             reply_markup=reply_markup,
         )
 
-
     except Exception as exc:
-
-        logger.exception(
-            "Random ayah failed: %s",
-            exc,
-        )
-
+        logger.exception("Random ayah failed: %s", exc)
 
         language = detect_language(
-            update.effective_user.language_code
-            if update.effective_user
-            else None
+            update.effective_user.language_code if update.effective_user else None
         )
 
-        await update.message.reply_text(
-            get_message(
-                "random_ayah_error",
-                language,
-            )
-        )
-
+        await update.message.reply_text(get_message("random_ayah_error", language))
 
 
 def get_handler() -> CommandHandler:
-
     return CommandHandler(
         "random",
         random_ayah,

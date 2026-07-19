@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 
 from app.core.config import Settings, get_settings
 
-
 logger = logging.getLogger(__name__)
 
 

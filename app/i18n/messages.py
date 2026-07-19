@@ -4,7 +4,6 @@ from collections.abc import Mapping
 
 from app.core.config import get_settings
 
-
 SupportedLanguage = str
 
 
@@ -75,7 +74,6 @@ MESSAGES: dict[str, Mapping[SupportedLanguage, str]] = {
 
 
 def normalize_language_code(value: str | None) -> str:
-
     if not value:
         return ""
 
@@ -83,7 +81,6 @@ def normalize_language_code(value: str | None) -> str:
 
 
 def _resolve_supported_language(value: str | None) -> SupportedLanguage | None:
-
     normalized = normalize_language_code(value)
 
     if not normalized:
@@ -93,28 +90,17 @@ def _resolve_supported_language(value: str | None) -> SupportedLanguage | None:
         return LANGUAGE_ALIASES[normalized]
 
     primary = normalized.split("-", 1)[0]
-
     return LANGUAGE_ALIASES.get(primary)
 
 
 def get_default_language() -> SupportedLanguage:
-
     settings = get_settings()
-
-    resolved = _resolve_supported_language(
-        settings.BOT_LANGUAGE,
-    )
-
+    resolved = _resolve_supported_language(settings.BOT_LANGUAGE)
     return resolved or "fa"
 
 
-def detect_language(
-    telegram_language_code: str | None,
-) -> SupportedLanguage:
-
-    resolved = _resolve_supported_language(
-        telegram_language_code,
-    )
+def detect_language(telegram_language_code: str | None) -> SupportedLanguage:
+    resolved = _resolve_supported_language(telegram_language_code)
 
     if resolved:
         return resolved
@@ -126,10 +112,6 @@ def get_message(
     key: str,
     language: SupportedLanguage,
 ) -> str:
-
     translations = MESSAGES[key]
 
-    return str(
-        translations.get(language)
-        or translations[get_default_language()]
-    )
+    return str(translations.get(language) or translations[get_default_language()])

@@ -2,22 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger
-from sqlalchemy import Boolean
-from sqlalchemy import String
+from sqlalchemy import BigInteger, Boolean, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import mapped_column
+from app.database.models.base import Base
+from app.database.models.mixins import TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.database.models.user_chat import UserChat
 
-from app.database.models.base import Base
-from app.database.models.mixins import (
-    TimestampMixin,
-    UUIDMixin,
-)
 
 class Chat(
     Base,
@@ -32,36 +25,10 @@ class Chat(
         cascade="all, delete-orphan",
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-    )
-
-    telegram_chat_id: Mapped[int] = mapped_column(
-        BigInteger,
-        unique=True,
-        index=True,
-    )
-
-    title: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-    )
-
-    chat_type: Mapped[str] = mapped_column(
-        String(32),
-    )
-
-    daily_enabled: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-    )
-
-    daily_time: Mapped[str] = mapped_column(
-        String(5),
-        default="08:00",
-    )
-
-    timezone: Mapped[str] = mapped_column(
-        String(64),
-        default="Asia/Tehran",
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    telegram_chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    chat_type: Mapped[str] = mapped_column(String(32))
+    daily_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    daily_time: Mapped[str] = mapped_column(String(5), default="08:00")
+    timezone: Mapped[str] = mapped_column(String(64), default="Asia/Tehran")

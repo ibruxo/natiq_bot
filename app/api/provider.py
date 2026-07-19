@@ -12,27 +12,20 @@ from app.cache.quran import QuranCache
 from app.core.config import get_settings
 from app.schemas.ayah import Ayah
 
-
 logger = logging.getLogger(__name__)
 
 TAKHTIT_UUID = "9419b5bd-8827-4a59-8dbc-935a472ca2f7"
 
 
 class NatiqProvider:
-
     def __init__(
         self,
         client: APIClient,
         cache: QuranCache,
     ) -> None:
-
         self._client = client
         self._cache = cache
         self._settings = get_settings()
-
-    # ==================================================
-    # HTTP
-    # ==================================================
 
     async def _get_with_retry(
         self,
@@ -41,20 +34,15 @@ class NatiqProvider:
         params: dict[str, Any] | None = None,
         retries: int = 3,
     ) -> Any:
-
         last_error: Exception | None = None
 
         for attempt in range(retries):
-
             try:
-
                 return await self._client.get(
                     endpoint,
                     params=params,
                 )
-
             except httpx.HTTPError as exc:
-
                 last_error = exc
 
                 logger.warning(
@@ -65,50 +53,28 @@ class NatiqProvider:
                     exc,
                 )
 
-                await asyncio.sleep(
-                    2 ** attempt
-                )
+                await asyncio.sleep(2**attempt)
 
-        raise RuntimeError(
-            f"Request failed: {endpoint}"
-        ) from last_error
+        raise RuntimeError(f"Request failed: {endpoint}") from last_error
 
     @staticmethod
-    def _extract_list(
-        payload: Any,
-    ) -> list[dict[str, Any]]:
-
+    def _extract_list(payload: Any) -> list[dict[str, Any]]:
         if isinstance(payload, list):
             return payload
 
         if isinstance(payload, dict):
-            return (
-                payload.get("results")
-                or payload.get("data")
-                or []
-            )
+            return payload.get("results") or payload.get("data") or []
 
         return []
 
-    # ==================================================
-    # Ayahs
-    # ==================================================
-
-    async def list_ayahs(
-        self,
-    ) -> list[dict[str, Any]]:
-
-        logger.info(
-            "Loading ayahs..."
-        )
+    async def list_ayahs(self) -> list[dict[str, Any]]:
+        logger.info("Loading ayahs...")
 
         results: list[dict[str, Any]] = []
-
         offset = 0
         limit = 200
 
         while True:
-
             response = await self._get_with_retry(
                 "/ayahs/",
                 params={
@@ -118,52 +84,31 @@ class NatiqProvider:
                 },
             )
 
-            items = self._extract_list(
-                response.json()
-            )
+            items = self._extract_list(response.json())
 
             if not items:
                 break
 
             results.extend(items)
-
-            logger.info(
-                "Loaded %s ayahs",
-                len(results),
-            )
+            logger.info("Loaded %s ayahs", len(results))
 
             if len(items) < limit:
                 break
 
             offset += len(items)
 
-        logger.info(
-            "Finished loading %s ayahs",
-            len(results),
-        )
-
+        logger.info("Finished loading %s ayahs", len(results))
         return results
 
-    # ==================================================
-    # Takhtits
-    # ==================================================
-
-    async def list_takhtits(
-        self,
-    ) -> list[dict[str, Any]]:
-
-        logger.info(
-            "Loading takhtits..."
-        )
+    async def list_takhtits(self) -> list[dict[str, Any]]:
+        logger.info("Loading takhtits...")
 
         results: list[dict[str, Any]] = []
         seen: set[str] = set()
-
         offset = 0
         limit = 200
 
         while True:
-
             response = await self._get_with_retry(
                 f"/takhtits/{TAKHTIT_UUID}/ayahs_breakers/",
                 params={
@@ -172,9 +117,7 @@ class NatiqProvider:
                 },
             )
 
-            items = self._extract_list(
-                response.json()
-            )
+            items = self._extract_list(response.json())
 
             if not items:
                 break
@@ -182,13 +125,9 @@ class NatiqProvider:
             added = 0
 
             for item in items:
-
-                uuid = item.get(
-                    "uuid"
-                )
+                uuid = item.get("uuid")
 
                 if uuid:
-
                     if uuid in seen:
                         continue
 
@@ -197,15 +136,10 @@ class NatiqProvider:
                 results.append(item)
                 added += 1
 
-            logger.info(
-                "Loaded %s takhtits",
-                len(results),
-            )
+            logger.info("Loaded %s takhtits", len(results))
 
             if added == 0:
-                logger.warning(
-                    "Repeated takhtit page detected"
-                )
+                logger.warning("Repeated takhtit page detected")
                 break
 
             if len(items) < limit:
@@ -213,24 +147,11 @@ class NatiqProvider:
 
             offset += len(items)
 
-        logger.info(
-            "Finished loading %s takhtits",
-            len(results),
-        )
-
+        logger.info("Finished loading %s takhtits", len(results))
         return results
 
-    # ==================================================
-    # Surahs
-    # ==================================================
-
-    async def list_surahs(
-        self,
-    ) -> list[dict[str, Any]]:
-
-        logger.info(
-            "Loading surahs..."
-        )
+    async def list_surahs(self) -> list[dict[str, Any]]:
+        logger.info("Loading surahs...")
 
         response = await self._get_with_retry(
             "/surahs/",
@@ -239,27 +160,13 @@ class NatiqProvider:
             },
         )
 
-        surahs = self._extract_list(
-            response.json()
-        )
+        surahs = self._extract_list(response.json())
 
-        logger.info(
-            "Loaded %s surahs",
-            len(surahs),
-        )
-
+        logger.info("Loaded %s surahs", len(surahs))
         return surahs
 
-    # ==================================================
-    # Translations
-    # ==================================================
-
-    async def list_translations(
-        self,
-    ) -> list[dict[str, Any]]:
-
+    async def list_translations(self) -> list[dict[str, Any]]:
         try:
-
             response = await self._get_with_retry(
                 "/translations/",
                 params={
@@ -268,52 +175,36 @@ class NatiqProvider:
                 },
             )
 
-            translations = self._extract_list(
-                response.json()
-            )
+            translations = self._extract_list(response.json())
 
             if not translations:
-                logger.warning(
-                    "No translations found"
-                )
+                logger.warning("No translations found")
                 return []
 
             selected = None
             wanted = self._settings.QURAN_TRANSLATOR
 
             if wanted:
-
                 for item in translations:
+                    translator = item.get("translator", {})
 
-                    translator = item.get(
-                        "translator",
-                        {},
-                    )
-
-                    if translator.get(
-                        "name"
-                    ) == wanted:
-
+                    if translator.get("name") == wanted:
                         selected = item
                         break
 
             if selected is None:
                 selected = translations[0]
 
-            translation_uuid = selected.get(
-                "uuid"
-            )
+            translation_uuid = selected.get("uuid")
 
             if not translation_uuid:
                 return []
 
             results: list[dict[str, Any]] = []
-
             offset = 0
             limit = 200
 
             while True:
-
                 response = await self._get_with_retry(
                     f"/translations/{translation_uuid}/ayahs/",
                     params={
@@ -322,9 +213,7 @@ class NatiqProvider:
                     },
                 )
 
-                items = self._extract_list(
-                    response.json()
-                )
+                items = self._extract_list(response.json())
 
                 if not items:
                     break
@@ -336,87 +225,46 @@ class NatiqProvider:
 
                 offset += len(items)
 
-            logger.info(
-                "Finished loading %s translations",
-                len(results),
-            )
-
+            logger.info("Finished loading %s translations", len(results))
             return results
 
         except httpx.HTTPError as exc:
-
-            logger.warning(
-                "Translation loading failed: %s",
-                exc,
-            )
-
+            logger.warning("Translation loading failed: %s", exc)
             return []
 
-    # ==================================================
-    # Random Ayah
-    # ==================================================
-
-    def _get_ayah_metadata(
-        self,
-        ayah: dict[str, Any],
-    ) -> dict[str, Any]:
-
+    def _get_ayah_metadata(self, ayah: dict[str, Any]) -> dict[str, Any]:
         ayah_uuid = ayah.get("uuid")
 
         if not ayah_uuid:
             return {}
 
-        return self._cache.takhtit_map.get(
-            ayah_uuid,
-            {},
-        )
+        return self._cache.takhtit_map.get(ayah_uuid, {})
 
-    def _resolve_surah(
-        self,
-        metadata: dict[str, Any],
-    ) -> dict[str, Any]:
-
-        surah_uuid = metadata.get(
-            "surah_uuid"
-        )
+    def _resolve_surah(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        surah_uuid = metadata.get("surah_uuid")
 
         if surah_uuid:
-
-            surah = self._cache.surah_uuid_map.get(
-                surah_uuid
-            )
-
+            surah = self._cache.surah_uuid_map.get(surah_uuid)
             if surah:
                 return surah
 
-        surah_number = metadata.get(
-            "surah"
-        )
+        surah_number = metadata.get("surah")
 
         if surah_number is None:
             return {}
 
-        return self._cache.surah_map.get(
-            surah_number,
-            {},
-        )
+        return self._cache.surah_map.get(surah_number, {})
 
     @staticmethod
-    def _get_surah_name(
-        surah: dict[str, Any],
-    ) -> str:
-
+    def _get_surah_name(surah: dict[str, Any]) -> str:
         names = surah.get("names")
 
         if isinstance(names, list):
-
             for item in names:
-
                 if not isinstance(item, dict):
                     continue
 
                 name = item.get("name")
-
                 if name:
                     return str(name)
 
@@ -429,43 +277,28 @@ class NatiqProvider:
         )
 
     @staticmethod
-    def _get_surah_period(
-        surah: dict[str, Any],
-    ) -> str:
+    def _get_surah_period(surah: dict[str, Any]) -> str:
+        location = (
+            str(
+                surah.get("location")
+                or surah.get("period")
+                or surah.get("revelation_place")
+                or ""
+            )
+            .strip()
+            .lower()
+        )
 
-        location = str(
-            surah.get("location")
-            or surah.get("period")
-            or surah.get("revelation_place")
-            or ""
-        ).strip().lower()
-
-        if location in {
-            "makki",
-            "meccan",
-            "makkah",
-            "macca",
-        }:
+        if location in {"makki", "meccan", "makkah", "macca"}:
             return "makki"
 
-        if location in {
-            "madani",
-            "medinan",
-            "madinah",
-            "medina",
-        }:
+        if location in {"madani", "medinan", "madinah", "medina"}:
             return "madani"
 
         return "unknown"
 
-    def _get_surah_icon(
-        self,
-        surah: dict[str, Any],
-    ) -> str:
-
-        period = self._get_surah_period(
-            surah
-        )
+    def _get_surah_icon(self, surah: dict[str, Any]) -> str:
+        period = self._get_surah_period(surah)
 
         if period == "makki":
             return "🕋"
@@ -475,93 +308,38 @@ class NatiqProvider:
 
         return ""
 
-    def _build_ayah_from_item(
-        self,
-        ayah: dict[str, Any],
-    ) -> Ayah:
+    def _build_ayah_from_item(self, ayah: dict[str, Any]) -> Ayah:
+        metadata = self._get_ayah_metadata(ayah)
+        surah_number = metadata.get("surah", 0)
+        ayah_number = metadata.get("ayah", ayah.get("number", 0))
+        ayah_uuid = ayah.get("uuid", "")
 
-        metadata = self._get_ayah_metadata(
-            ayah,
-        )
-
-        surah_number = metadata.get(
-            "surah",
-            0,
-        )
-
-        ayah_number = metadata.get(
-            "ayah",
-            ayah.get(
-                "number",
-                0,
-            ),
-        )
-
-        ayah_uuid = ayah.get(
-            "uuid",
-            "",
-        )
-
-        translation_item = self._cache.translation_map.get(
-            ayah_uuid,
-            {},
-        )
-        translation = translation_item.get(
-            "text"
-        )
-
-        surah = self._resolve_surah(
-            metadata
-        )
+        translation_item = self._cache.translation_map.get(ayah_uuid, {})
+        translation = translation_item.get("text")
+        surah = self._resolve_surah(metadata)
 
         return Ayah(
-            text=ayah.get(
-                "text",
-                "",
-            ),
+            text=ayah.get("text", ""),
             uuid=ayah_uuid,
             translation=translation,
-            surah_uuid=surah.get(
-                "uuid",
-                "",
-            ),
-            surah_name=self._get_surah_name(
-                surah
-            ),
+            surah_uuid=surah.get("uuid", ""),
+            surah_name=self._get_surah_name(surah),
             surah_number=surah_number,
-            surah_period=self._get_surah_period(
-                surah
-            ),
-            surah_icon=self._get_surah_icon(
-                surah
-            ),
+            surah_period=self._get_surah_period(surah),
+            surah_icon=self._get_surah_icon(surah),
             ayah_number=ayah_number,
             page=metadata.get("page"),
             juz=metadata.get("juz"),
         )
 
-    async def random_ayah(
-        self,
-    ) -> Ayah:
-
+    async def random_ayah(self) -> Ayah:
         if not self._cache.ayahs:
-            raise RuntimeError(
-                "Quran cache empty"
-            )
+            raise RuntimeError("Quran cache empty")
 
-        ayah = random.choice(
-            self._cache.ayahs
-        )
+        ayah = random.choice(self._cache.ayahs)
+        return self._build_ayah_from_item(ayah)
 
-        return self._build_ayah_from_item(
-            ayah,
-        )
-
-    async def next_ayah(
-        self,
-        current_uuid: str | None = None,
-    ) -> Ayah:
-
+    async def next_ayah(self, current_uuid: str | None = None) -> Ayah:
         return await self._navigate_ayah(
             current_uuid=current_uuid,
             direction="next",
@@ -573,99 +351,50 @@ class NatiqProvider:
         *,
         direction: str,
     ) -> Ayah:
-
         if not self._cache.ayahs:
-            raise RuntimeError(
-                "Quran cache empty"
-            )
+            raise RuntimeError("Quran cache empty")
 
         if current_uuid is None:
             return await self.random_ayah()
 
         current_ayah = next(
-            (
-                ayah
-                for ayah in self._cache.ayahs
-                if ayah.get("uuid") == current_uuid
-            ),
+            (ayah for ayah in self._cache.ayahs if ayah.get("uuid") == current_uuid),
             None,
         )
 
         if current_ayah is None:
             return await self.random_ayah()
 
-        metadata = self._get_ayah_metadata(
-            current_ayah,
-        )
-
-        current_surah = metadata.get(
-            "surah",
-            0,
-        )
-
-        current_number = metadata.get(
-            "ayah",
-            current_ayah.get(
-                "number",
-                0,
-            ),
-        )
+        metadata = self._get_ayah_metadata(current_ayah)
+        current_surah = metadata.get("surah", 0)
+        current_number = metadata.get("ayah", current_ayah.get("number", 0))
 
         for ayah in self._cache.ayahs:
-
             if ayah.get("uuid") == current_uuid:
                 continue
 
-            candidate_metadata = self._get_ayah_metadata(
-                ayah,
-            )
-
-            candidate_surah = candidate_metadata.get(
-                "surah",
-                0,
-            )
-
-            candidate_number = candidate_metadata.get(
-                "ayah",
-                ayah.get(
-                    "number",
-                    0,
-                ),
-            )
+            candidate_metadata = self._get_ayah_metadata(ayah)
+            candidate_surah = candidate_metadata.get("surah", 0)
+            candidate_number = candidate_metadata.get("ayah", ayah.get("number", 0))
 
             if candidate_surah != current_surah:
                 continue
 
             if direction == "next":
-
                 if candidate_number == current_number + 1:
-                    return self._build_ayah_from_item(
-                        ayah,
-                    )
-
+                    return self._build_ayah_from_item(ayah)
             else:
-
                 if candidate_number == current_number - 1:
-                    return self._build_ayah_from_item(
-                        ayah,
-                    )
+                    return self._build_ayah_from_item(ayah)
 
         current_index = next(
             index
-            for index, ayah in enumerate(
-                self._cache.ayahs
-            )
+            for index, ayah in enumerate(self._cache.ayahs)
             if ayah.get("uuid") == current_uuid
         )
 
         delta = 1 if direction == "next" else -1
-
-        next_index = (current_index + delta) % len(
-            self._cache.ayahs
-        )
-
+        next_index = (current_index + delta) % len(self._cache.ayahs)
         ayah = self._cache.ayahs[next_index]
 
-        return self._build_ayah_from_item(
-            ayah,
-        )
+        return self._build_ayah_from_item(ayah)
