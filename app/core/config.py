@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     PLATFORM: str = "TELEGRAM"
     BOT_LANGUAGE: str = "fa"
     OPEN_IN_NATIQ_BASE_URL: str = "https://natiq.net"
+    ADMIN_USER_IDS: str = ""
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@postgres:5432/quran_bot"
     REDIS_URL: str = "redis://redis:6379/0"
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
     TZ: str = "UTC"
 
     @model_validator(mode="after")
-    def validate_settings(self) -> Settings:
+    def validate_settings(self) -> "Settings":
         if self.NATIQ_API_TIMEOUT <= 0:
             raise ValueError("NATIQ_API_TIMEOUT must be greater than zero")
 
@@ -41,6 +42,23 @@ class Settings(BaseSettings):
             raise ValueError("NATIQ_PRIMARY_API must not be empty")
 
         return self
+
+    @property
+    def admin_user_ids(self) -> set[int]:
+        values: set[int] = set()
+
+        for raw_item in self.ADMIN_USER_IDS.split(","):
+            item = raw_item.strip()
+
+            if not item:
+                continue
+
+            try:
+                values.add(int(item))
+            except ValueError:
+                continue
+
+        return values
 
     @property
     def api_headers(self) -> dict[str, str]:

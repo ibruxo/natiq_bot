@@ -9,6 +9,7 @@ from app.cache.loader import QuranCacheLoader
 from app.cache.quran import QuranCache
 from app.cache.redis import RedisCache
 from app.database.session import Database
+from app.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ class Container:
             provider=self._provider,
             cache=self._cache,
         )
+        self._user_repository = UserRepository(self._database)
         self._quran_cache_ready = False
 
         logger.info("Container initialized.")
@@ -68,6 +70,10 @@ class Container:
         return self._loader
 
     @property
+    def user_repository(self) -> UserRepository:
+        return self._user_repository
+
+    @property
     def quran_cache_ready(self) -> bool:
         return self._quran_cache_ready
 
@@ -91,6 +97,16 @@ class Container:
         configure_rate_limiter(self._redis)
 
         logger.info("Container startup completed.")
+
+    async def reload_quran_cache(self) -> bool:
+        """
+        Reload the in-memory Quran cache on demand.
+
+        Used by administrative actions to recover from a degraded cache
+        without requiring a full bot restart.
+        """
+        self._quran_cache_ready = await self._loader.load()
+        return self._quran_cache_ready
 
     async def shutdown(self) -> None:
         """

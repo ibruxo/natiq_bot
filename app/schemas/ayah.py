@@ -35,6 +35,12 @@ class Ayah(BaseModel):
 
     surah_icon: str
 
+    bismillah_text: str | None = None
+
+    bismillah_is_ayah: bool = False
+
+    show_bismillah_line: bool = False
+
     # --------------------------------------------------
     # Position
     # --------------------------------------------------

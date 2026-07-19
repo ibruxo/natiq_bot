@@ -308,6 +308,68 @@ class NatiqProvider:
 
         return ""
 
+    @staticmethod
+    def _get_surah_bismillah(surah: dict[str, Any]) -> dict[str, Any]:
+        bismillah = surah.get("bismillah")
+
+        if isinstance(bismillah, dict):
+            return bismillah
+
+        return {}
+
+    @classmethod
+    def _get_surah_bismillah_text(cls, surah: dict[str, Any]) -> str | None:
+        text = str(cls._get_surah_bismillah(surah).get("text") or "").strip()
+        return text or None
+
+    @classmethod
+    def _is_surah_bismillah_ayah(cls, surah: dict[str, Any]) -> bool:
+        return bool(cls._get_surah_bismillah(surah).get("is_ayah", False))
+
+    @classmethod
+    def _should_show_bismillah_line(
+        cls,
+        surah: dict[str, Any],
+        ayah_number: int,
+    ) -> bool:
+        if ayah_number != 1:
+            return False
+
+        bismillah_text = cls._get_surah_bismillah_text(surah)
+
+        if not bismillah_text:
+            return False
+
+        return not cls._is_surah_bismillah_ayah(surah)
+
+    @classmethod
+    def _normalize_ayah_text(
+        cls,
+        surah: dict[str, Any],
+        ayah_number: int,
+        text: str,
+    ) -> str:
+        normalized_text = text.strip()
+
+        if ayah_number != 1:
+            return normalized_text
+
+        if not cls._is_surah_bismillah_ayah(surah):
+            return normalized_text
+
+        bismillah_text = cls._get_surah_bismillah_text(surah)
+
+        if not bismillah_text:
+            return normalized_text
+
+        if normalized_text == bismillah_text:
+            return normalized_text
+
+        if normalized_text.startswith(f"{bismillah_text} "):
+            return normalized_text[len(bismillah_text) :].strip()
+
+        return normalized_text
+
     def _build_ayah_from_item(self, ayah: dict[str, Any]) -> Ayah:
         metadata = self._get_ayah_metadata(ayah)
         surah_number = metadata.get("surah", 0)
@@ -317,9 +379,18 @@ class NatiqProvider:
         translation_item = self._cache.translation_map.get(ayah_uuid, {})
         translation = translation_item.get("text")
         surah = self._resolve_surah(metadata)
+        bismillah_text = self._get_surah_bismillah_text(surah)
+        show_bismillah_line = self._should_show_bismillah_line(
+            surah,
+            ayah_number,
+        )
 
         return Ayah(
-            text=ayah.get("text", ""),
+            text=self._normalize_ayah_text(
+                surah,
+                ayah_number,
+                ayah.get("text", ""),
+            ),
             uuid=ayah_uuid,
             translation=translation,
             surah_uuid=surah.get("uuid", ""),
@@ -327,6 +398,9 @@ class NatiqProvider:
             surah_number=surah_number,
             surah_period=self._get_surah_period(surah),
             surah_icon=self._get_surah_icon(surah),
+            bismillah_text=bismillah_text,
+            bismillah_is_ayah=self._is_surah_bismillah_ayah(surah),
+            show_bismillah_line=show_bismillah_line,
             ayah_number=ayah_number,
             page=metadata.get("page"),
             juz=metadata.get("juz"),

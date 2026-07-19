@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes
 
+from app.api.checker import MessengerFeature
 from app.bot.guards.rate_limit import RateLimitRule, rate_limit
 from app.core.container import Container
 from app.i18n import detect_language, get_message
@@ -30,10 +31,16 @@ def format_ayah(
 
     title = f"{ayah.surah_name} {ayah.surah_icon}".strip()
 
+    bismillah_line = ""
+
+    if ayah.show_bismillah_line and ayah.bismillah_text:
+        bismillah_line = f"{ayah.bismillah_text}\n\n"
+
     if language == "fa":
         surah_title = f"{ayah.surah_icon} *{surah_label} {ayah.surah_name}*".strip()
         return (
             f"{surah_title}\n\n"
+            f"{bismillah_line}"
             f"📖 *{ayah.text} ﴿{ayah.ayah_number}﴾*\n\n"
             f"{translation_line}"
             "@NatiqBot"
@@ -92,10 +99,15 @@ async def random_ayah(
         context.user_data["bot_language"] = language
         context.user_data["current_ayah_uuid"] = ayah.uuid
 
-        reply_markup = random_ayah_keyboard(
-            ayah.uuid,
-            language,
-        )
+        reply_markup = None
+
+        if context.application.bot_data["feature_checker"].supports(
+            MessengerFeature.INLINE_KEYBOARD
+        ):
+            reply_markup = random_ayah_keyboard(
+                ayah.uuid,
+                language,
+            )
 
         await update.message.reply_text(
             text=format_ayah(

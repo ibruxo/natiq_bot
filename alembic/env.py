@@ -15,8 +15,22 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+
+def _to_sync_database_url(database_url: str) -> str:
+    """
+    Alembic runs migrations with a synchronous SQLAlchemy engine, while the
+    application itself uses an async driver (asyncpg) for runtime queries.
+    Passing the async URL straight to `engine_from_config` would fail, so
+    migrations use the matching sync driver (psycopg2) instead.
+    """
+    return database_url.replace("+asyncpg", "+psycopg2", 1)
+
+
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option(
+    "sqlalchemy.url",
+    _to_sync_database_url(settings.DATABASE_URL),
+)
 
 target_metadata = Base.metadata
 

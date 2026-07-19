@@ -5,6 +5,7 @@ import logging
 
 import httpx
 
+from app.api.checker import APIFeatureChecker
 from app.bot.application import create_application
 from app.core.config import validate_runtime_settings
 from app.core.container import Container
@@ -58,6 +59,10 @@ async def main() -> None:
     settings = validate_runtime_settings()
 
     logger.info("Starting Quran Bot...")
+    logger.info(
+        "Configured admin user IDs: %s",
+        sorted(settings.admin_user_ids),
+    )
 
     container = Container()
     application = None
@@ -76,7 +81,13 @@ async def main() -> None:
                     "Bot API preflight check failed; continuing to initialize polling."
                 )
 
-        application = create_application(container)
+        feature_checker = APIFeatureChecker(settings)
+        await feature_checker.detect()
+
+        application = create_application(
+            container,
+            feature_checker,
+        )
 
         logger.info("Initializing Telegram application...")
         await application.initialize()
