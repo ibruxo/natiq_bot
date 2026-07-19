@@ -3,7 +3,9 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from urllib.parse import urlparse
+from typing import Any
+
+import httpx
 
 from app.core.config import Settings, get_settings
 
@@ -11,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class MessengerPlatform(StrEnum):
-    TELEGRAM = "telegram"
-    TELEGRAM_BOT_API = "telegram-bot-api"
+    TELEGRAM_STANDARD = "telegram-standard"
     UNKNOWN = "unknown"
 
 
@@ -33,21 +34,149 @@ class FeatureSupport:
     reason: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class CapabilityProfile:
+    platform: MessengerPlatform
+    feature_support: dict[MessengerFeature, bool]
+
+
+@dataclass(frozen=True, slots=True)
+class ProbeSpec:
+    method: str
+    http_method: str = "GET"
+    payload: dict[str, Any] | None = None
+    accepted_error_descriptions: tuple[str, ...] = ()
+
+
 class APIFeatureChecker:
     """
-    Detects which messenger API is configured and whether a feature can be used.
+    Detects runtime bot capabilities by probing the configured Bot API.
 
-    This lets the application avoid calling platform-specific python-telegram-bot
-    features when the configured API backend does not support them.
+    The probe checks whether specific Bot API routes exist and respond in a
+    compatible way. Features are enabled only when the corresponding route is
+    reachable and behaves as expected.
     """
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings: Settings = settings or get_settings()
-        self._platform: MessengerPlatform = self._detect_platform()
+        self._profile = CapabilityProfile(
+            platform=MessengerPlatform.UNKNOWN,
+            feature_support={feature: False for feature in MessengerFeature},
+        )
 
     @property
     def platform(self) -> MessengerPlatform:
-        return self._platform
+        return self._profile.platform
+
+    async def detect(self) -> None:
+        bot_api = (self._settings.BOT_API or "").rstrip("/")
+        token = (self._settings.BOT_TOKEN or "").strip()
+
+        if not bot_api or not token:
+            logger.warning(
+                "Skipping capability detection because BOT_API or BOT_TOKEN is empty."
+            )
+            return
+
+        probe_map = {
+            MessengerFeature.INLINE_KEYBOARD: ProbeSpec(method="getMe"),
+            MessengerFeature.CALLBACK_QUERY: ProbeSpec(
+                method="setMyCommands",
+                http_method="POST",
+                payload={"commands": []},
+                accepted_error_descriptions=(
+                    "bad request: commands are too much",
+                    "bad request: can't parse botcommand",
+                ),
+            ),
+            MessengerFeature.PREMIUM: ProbeSpec(method="getUserProfilePhotos"),
+            MessengerFeature.DONATE: ProbeSpec(method="getMyCommands"),
+            MessengerFeature.STARS: ProbeSpec(method="getStarTransactions"),
+            MessengerFeature.GIFT: ProbeSpec(method="getAvailableGifts"),
+        }
+
+        feature_support: dict[MessengerFeature, bool] = {}
+
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(10.0, connect=5.0),
+            follow_redirects=True,
+        ) as client:
+            for feature, spec in probe_map.items():
+                supported = await self._probe_method(
+                    client,
+                    bot_api,
+                    token,
+                    spec,
+                )
+                feature_support[feature] = supported
+
+        if feature_support.get(MessengerFeature.CALLBACK_QUERY):
+            feature_support[MessengerFeature.INLINE_KEYBOARD] = True
+
+        platform = (
+            MessengerPlatform.TELEGRAM_STANDARD
+            if any(feature_support.values())
+            else MessengerPlatform.UNKNOWN
+        )
+
+        self._profile = CapabilityProfile(
+            platform=platform,
+            feature_support=feature_support,
+        )
+
+        logger.info(
+            "Detected bot API capabilities: %s",
+            {
+                feature.value: supported
+                for feature, supported in feature_support.items()
+            },
+        )
+
+    async def _probe_method(
+        self,
+        client: httpx.AsyncClient,
+        bot_api: str,
+        token: str,
+        spec: ProbeSpec,
+    ) -> bool:
+        url = f"{bot_api}/bot{token}/{spec.method}"
+
+        try:
+            if spec.http_method == "POST":
+                response = await client.post(url, json=spec.payload)
+            else:
+                response = await client.get(url, params=spec.payload)
+        except httpx.HTTPError as exc:
+            logger.info("Capability probe failed for %s: %s", spec.method, exc)
+            return False
+
+        try:
+            payload = response.json()
+        except ValueError:
+            logger.info(
+                "Capability probe for %s returned non-JSON response",
+                spec.method,
+            )
+            return False
+
+        if not isinstance(payload, dict):
+            return False
+
+        if payload.get("ok") is True:
+            return True
+
+        description = str(payload.get("description") or "").strip().lower()
+
+        if any(description == item for item in spec.accepted_error_descriptions):
+            return True
+
+        logger.info(
+            "Capability probe for %s returned unsupported response: HTTP %s %s",
+            spec.method,
+            response.status_code,
+            description or payload,
+        )
+        return False
 
     def supports(self, feature: MessengerFeature) -> bool:
         return self.describe(feature).supported
@@ -64,57 +193,13 @@ class APIFeatureChecker:
         )
 
     def describe(self, feature: MessengerFeature) -> FeatureSupport:
-        if self._platform in {
-            MessengerPlatform.TELEGRAM,
-            MessengerPlatform.TELEGRAM_BOT_API,
-        }:
-            return self._describe_telegram_support(feature)
-
-        return FeatureSupport(
-            feature=feature,
-            supported=False,
-            platform=self._platform,
-            reason="unknown messenger API capabilities",
-        )
-
-    def _detect_platform(self) -> MessengerPlatform:
-        bot_api = (self._settings.BOT_API or "").strip()
-
-        if not bot_api:
-            return MessengerPlatform.UNKNOWN
-
-        parsed = urlparse(bot_api)
-        host = (parsed.hostname or "").lower()
-        path = (parsed.path or "").strip("/").lower()
-
-        if host == "api.telegram.org" or host.endswith(".telegram.org"):
-            return MessengerPlatform.TELEGRAM
-
-        if "telegram" in host or path.startswith("bot"):
-            return MessengerPlatform.TELEGRAM_BOT_API
-
-        return MessengerPlatform.UNKNOWN
-
-    def _describe_telegram_support(
-        self,
-        feature: MessengerFeature,
-    ) -> FeatureSupport:
-        supported_features = {
-            MessengerFeature.INLINE_KEYBOARD,
-            MessengerFeature.CALLBACK_QUERY,
-            MessengerFeature.PREMIUM,
-            MessengerFeature.DONATE,
-            MessengerFeature.STARS,
-            MessengerFeature.GIFT,
-        }
-
-        supported = feature in supported_features
-        reason = None if supported else "feature is not mapped for Telegram yet"
+        supported = self._profile.feature_support.get(feature, False)
+        reason = None if supported else "feature probe failed or route is unavailable"
 
         return FeatureSupport(
             feature=feature,
             supported=supported,
-            platform=self._platform,
+            platform=self._profile.platform,
             reason=reason,
         )
 

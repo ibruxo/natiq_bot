@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
+from app.api.checker import MessengerFeature
 from app.bot.handlers.random import format_ayah
 from app.core.container import Container
 from app.i18n import detect_language, get_message
@@ -33,10 +34,15 @@ async def _reply_with_ayah(
 
     context.user_data["current_ayah_uuid"] = ayah.uuid
 
-    reply_markup = random_ayah_keyboard(
-        ayah.uuid,
-        language,
-    )
+    reply_markup = None
+
+    if context.application.bot_data["feature_checker"].supports(
+        MessengerFeature.INLINE_KEYBOARD
+    ):
+        reply_markup = random_ayah_keyboard(
+            ayah.uuid,
+            language,
+        )
 
     await message.reply_text(
         text=format_ayah(

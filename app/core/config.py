@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     TZ: str = "UTC"
 
     @model_validator(mode="after")
-    def validate_settings(self) -> Settings:
+    def validate_settings(self) -> "Settings":
         if self.NATIQ_API_TIMEOUT <= 0:
             raise ValueError("NATIQ_API_TIMEOUT must be greater than zero")
 

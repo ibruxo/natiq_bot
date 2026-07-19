@@ -65,10 +65,10 @@ MESSAGES: dict[str, Mapping[SupportedLanguage, str]] = {
         "tr": "Ayet alınamadı",
     },
     "rate_limited": {
-        "fa": "لطفاً کمی بعد دوباره تلاش کنید.",
-        "en": "Please try again in a moment.",
-        "ar": "يرجى المحاولة مرة أخرى بعد قليل.",
-        "tr": "Lütfen kısa bir süre sonra tekrar deneyin.",
+        "fa": "شما در مدت کوتاهی درخواست‌های زیادی فرستادید. لطفاً کمی صبر کنید و دوباره تلاش کنید.",
+        "en": "You sent too many requests in a short time. Please wait a moment and try again.",
+        "ar": "لقد أرسلت طلبات كثيرة خلال وقت قصير. يرجى الانتظار قليلًا ثم المحاولة مرة أخرى.",
+        "tr": "Kısa sürede çok fazla istek gönderdiniz. Lütfen biraz bekleyip tekrar deneyin.",
     },
 }
 

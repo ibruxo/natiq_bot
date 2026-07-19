@@ -22,9 +22,11 @@ async def _handle_error(
     )
 
 
-def create_application(container: Container) -> Application:
+def create_application(
+    container: Container,
+    feature_checker: APIFeatureChecker,
+) -> Application:
     settings = get_settings()
-    feature_checker = APIFeatureChecker(settings)
 
     request = HTTPXRequest(
         connection_pool_size=20,
