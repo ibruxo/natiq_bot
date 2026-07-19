@@ -1,8 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sqlalchemy import ForeignKey
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
+
+if TYPE_CHECKING:
+    from app.database.models.chat import Chat
+    from app.database.models.user import User
 
 from app.database.models.base import Base
 from app.database.models.mixins import TimestampMixin
@@ -47,12 +55,12 @@ class UserChat(
         index=True,
     )
 
-    user = relationship(
+    user: Mapped["User"] = relationship(
         "User",
         back_populates="user_chats",
     )
 
-    chat = relationship(
+    chat: Mapped["Chat"] = relationship(
         "Chat",
         back_populates="user_chats",
     )

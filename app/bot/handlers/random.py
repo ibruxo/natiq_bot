@@ -3,39 +3,60 @@ from __future__ import annotations
 import logging
 
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import CommandHandler, ContextTypes
 
+from app.bot.guards.rate_limit import RateLimitRule, rate_limit
 from app.core.container import Container
+from app.i18n import detect_language, get_message
 from app.schemas.ayah import Ayah
 from app.ui.keyboards import random_ayah_keyboard
-
 
 logger = logging.getLogger(__name__)
 
 
-def format_ayah(ayah: Ayah) -> str:
-
-    text = (
-        f"﴿ {ayah.text} ﴾\n\n"
-        f"📖 {ayah.surah_name}\n"
-        f"آیه {ayah.ayah_number} | "
-        f"سوره {ayah.surah_number}"
-    )
-
+def format_ayah(
+    ayah: Ayah,
+    language: str = "fa",
+) -> str:
+    surah_label = get_message("surah_label", language)
+    translation_line = ""
 
     if ayah.translation:
-
-        text += (
-            "\n\n"
-            "ترجمه:\n"
-            f"{ayah.translation}"
+        translation_line = (
+            f"{get_message('translation_label', language)} "
+            f"{ayah.translation} ({ayah.ayah_number})\n\n"
         )
 
+    title = f"{ayah.surah_name} {ayah.surah_icon}".strip()
+
+    if language == "fa":
+        surah_title = f"{ayah.surah_icon} *{surah_label} {ayah.surah_name}*".strip()
+        return (
+            f"{surah_title}\n\n"
+            f"📖 *{ayah.text} ﴿{ayah.ayah_number}﴾*\n\n"
+            f"{translation_line}"
+            "@NatiqBot"
+        )
+
+    text = (
+        f"📖 {title}\n"
+        f"﴿ {ayah.text} ﴾\n\n"
+        f"آیه {ayah.ayah_number} | سوره {ayah.surah_number}"
+    )
+
+    if ayah.translation:
+        text += "\n\nترجمه:\n" f"{ayah.translation}"
 
     return text
 
 
-
+@rate_limit(
+    RateLimitRule(
+        limit=5,
+        window_seconds=15,
+    )
+)
 async def random_ayah(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -43,46 +64,59 @@ async def random_ayah(
     """
     Send a random Quran ayah.
     """
-
     if not update.message:
-
         return
 
-
     try:
+        container: Container = context.application.bot_data["container"]
 
-        container: Container = (
-            context.application.bot_data["container"]
+        if not container.quran_cache_ready:
+            await update.message.reply_text(
+                get_message(
+                    "random_ayah_error",
+                    detect_language(
+                        update.effective_user.language_code
+                        if update.effective_user
+                        else None
+                    ),
+                )
+            )
+            return
+
+        ayah: Ayah = await container.provider.random_ayah()
+
+        language = detect_language(
+            update.effective_user.language_code if update.effective_user else None
         )
 
+        context.user_data["bot_language"] = language
+        context.user_data["current_ayah_uuid"] = ayah.uuid
 
-        ayah: Ayah = await (
-            container.provider.random_ayah()
+        reply_markup = random_ayah_keyboard(
+            ayah.uuid,
+            language,
         )
-
 
         await update.message.reply_text(
-            text=format_ayah(ayah),
-            reply_markup=random_ayah_keyboard(ayah.uuid),
+            text=format_ayah(
+                ayah,
+                language,
+            ),
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=reply_markup,
         )
-
 
     except Exception as exc:
+        logger.exception("Random ayah failed: %s", exc)
 
-        logger.exception(
-            "Random ayah failed: %s",
-            exc,
+        language = detect_language(
+            update.effective_user.language_code if update.effective_user else None
         )
 
-
-        await update.message.reply_text(
-            "خطا در دریافت آیه."
-        )
-
+        await update.message.reply_text(get_message("random_ayah_error", language))
 
 
 def get_handler() -> CommandHandler:
-
     return CommandHandler(
         "random",
         random_ayah,

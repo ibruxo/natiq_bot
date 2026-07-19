@@ -20,6 +20,23 @@ class RedisCache:
             decode_responses=True,
         )
 
+    async def increment(
+        self,
+        key: str,
+        *,
+        window_seconds: int,
+    ) -> int:
+
+        value = await self.redis.incr(key)
+
+        if value == 1:
+            await self.redis.expire(
+                key,
+                window_seconds,
+            )
+
+        return int(value)
+
     async def connect(self):
 
         await self.redis.ping()

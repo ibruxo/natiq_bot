@@ -1,15 +1,23 @@
+from __future__ import annotations
+
+import uuid
+from typing import TYPE_CHECKING
+
 from sqlalchemy import ForeignKey
-from sqlalchemy import String
 
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
+
+if TYPE_CHECKING:
+    from app.database.models.user import User
 
 from app.database.models.base import Base
 from app.database.models.mixins import (
     TimestampMixin,
     UUIDMixin,
 )
+from app.database.types import UUIDType
 
 
 class ReadingProgress(
@@ -36,15 +44,15 @@ class ReadingProgress(
         index=True,
     )
 
-    surah_uuid: Mapped[str] = mapped_column(
-        String(36),
+    surah_uuid: Mapped[uuid.UUID] = mapped_column(
+        UUIDType(),
     )
 
-    ayah_uuid: Mapped[str] = mapped_column(
-        String(36),
+    ayah_uuid: Mapped[uuid.UUID] = mapped_column(
+        UUIDType(),
     )
 
-    user = relationship(
+    user: Mapped["User"] = relationship(
         "User",
         back_populates="reading_progress",
     )

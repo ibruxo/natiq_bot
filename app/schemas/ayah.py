@@ -4,18 +4,42 @@ from pydantic import BaseModel
 
 
 class Ayah(BaseModel):
+    """
+    Fully hydrated Quran ayah.
+
+    The provider resolves all metadata before creating this model,
+    so handlers never need to search the cache.
+    """
+
+    # --------------------------------------------------
+    # Ayah
+    # --------------------------------------------------
+
+    uuid: str
 
     text: str
 
-    uuid: str | None = None
-
     translation: str | None = None
 
-    surah_name: str = "Unknown"
+    # --------------------------------------------------
+    # Surah
+    # --------------------------------------------------
 
-    surah_number: int = 0
+    surah_uuid: str
 
-    ayah_number: int = 0
+    surah_name: str
+
+    surah_number: int
+
+    surah_period: str
+
+    surah_icon: str
+
+    # --------------------------------------------------
+    # Position
+    # --------------------------------------------------
+
+    ayah_number: int
 
     page: int | None = None
 

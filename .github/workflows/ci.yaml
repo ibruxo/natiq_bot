@@ -1,33 +1,43 @@
-name: Docker Image CI
+name: CI
 
 on:
   push:
-    branches: 
-      - "main"
-      - "test"
-      - "dev"
+    branches:
+      - main
+      - test
+      - dev
   pull_request:
     branches:
-      - "main"
-      - "test"
-      - "dev"
+      - main
+      - test
+      - dev
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-dev.txt
 
-      - name: Build the Docker image
+      - name: Install dependencies
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            TAG="latest"
-          else
-            TAG="${GITHUB_REF##*/}"
-          fi
-          docker build . --file Dockerfile --tag bot:$TAG
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e .
+
+      - name: Run linters
+        run: |
+          ruff check .
+          black --check .
+
+      - name: Run tests
+        run: |
+          pytest -q

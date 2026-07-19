@@ -3,13 +3,8 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-
 from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import get_settings
 
@@ -17,11 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class Database:
-
     def __init__(self):
-
         settings = get_settings()
-
         database_url = settings.DATABASE_URL
 
         try:
@@ -41,8 +33,6 @@ class Database:
                     "postgresql+asyncpg://",
                     1,
                 )
-            elif url.drivername == "postgresql+asyncpg":
-                database_url = database_url
 
         self.engine = create_async_engine(
             database_url,
@@ -57,7 +47,6 @@ class Database:
         )
 
     async def connect(self):
-
         async with self.engine.begin() as conn:
             await conn.run_sync(lambda _: None)
 
@@ -65,24 +54,16 @@ class Database:
 
     @asynccontextmanager
     async def session(self):
-
         session = self.session_factory()
 
         try:
-
             yield session
-
         finally:
-
             await session.close()
 
     async def dispose(self) -> None:
-
         await self.engine.dispose()
-
         logger.info("Database disconnected.")
 
-
     async def close(self) -> None:
-
         await self.dispose()
