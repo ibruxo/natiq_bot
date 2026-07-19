@@ -31,10 +31,16 @@ def format_ayah(
 
     title = f"{ayah.surah_name} {ayah.surah_icon}".strip()
 
+    bismillah_line = ""
+
+    if ayah.show_bismillah_line and ayah.bismillah_text:
+        bismillah_line = f"{ayah.bismillah_text}\n\n"
+
     if language == "fa":
         surah_title = f"{ayah.surah_icon} *{surah_label} {ayah.surah_name}*".strip()
         return (
             f"{surah_title}\n\n"
+            f"{bismillah_line}"
             f"📖 *{ayah.text} ﴿{ayah.ayah_number}﴾*\n\n"
             f"{translation_line}"
             "@NatiqBot"

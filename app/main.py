@@ -59,6 +59,10 @@ async def main() -> None:
     settings = validate_runtime_settings()
 
     logger.info("Starting Quran Bot...")
+    logger.info(
+        "Configured admin user IDs: %s",
+        sorted(settings.admin_user_ids),
+    )
 
     container = Container()
     application = None

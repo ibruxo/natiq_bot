@@ -3,8 +3,10 @@ from __future__ import annotations
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
+from app.api.checker import MessengerFeature
 from app.bot.guards.rate_limit import RateLimitRule, rate_limit
 from app.core.config import get_settings
+from app.core.container import Container
 from app.i18n import detect_language, get_message
 from app.ui.keyboards import main_menu_keyboard
 
@@ -17,6 +19,32 @@ def _is_admin(update: Update) -> bool:
 
     settings = get_settings()
     return user.id in settings.admin_user_ids
+
+
+def _build_admin_dashboard(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    language: str,
+) -> str:
+    settings = get_settings()
+    container: Container = context.application.bot_data["container"]
+    feature_checker = context.application.bot_data["feature_checker"]
+    user_id = update.effective_user.id if update.effective_user else None
+
+    callback_query_supported = feature_checker.supports(MessengerFeature.CALLBACK_QUERY)
+    inline_keyboard_supported = feature_checker.supports(
+        MessengerFeature.INLINE_KEYBOARD
+    )
+
+    return get_message("admin_dashboard", language).format(
+        user_id=user_id or "-",
+        platform=settings.PLATFORM,
+        bot_language=settings.BOT_LANGUAGE,
+        quran_cache_ready="yes" if container.quran_cache_ready else "no",
+        inline_keyboard_supported="yes" if inline_keyboard_supported else "no",
+        callback_query_supported="yes" if callback_query_supported else "no",
+        configured_admin_count=len(settings.admin_user_ids),
+    )
 
 
 async def _reply_admin_denied(
@@ -58,7 +86,7 @@ async def admin_settings_entry(
     )
 
     await update.message.reply_text(
-        get_message("admin_settings_placeholder", language),
+        _build_admin_dashboard(update, context, language),
         reply_markup=main_menu_keyboard(language),
     )
 

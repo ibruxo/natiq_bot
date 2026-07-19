@@ -82,17 +82,17 @@ MESSAGES: dict[str, Mapping[SupportedLanguage, str]] = {
         "ar": "مساعدة بوت ناطق\n\nالأوامر المتاحة:\n/start - تشغيل البوت وإظهار القائمة الرئيسية\n/help - عرض هذه المساعدة\n/random - الحصول على آية عشوائية\n/admin - فتح قسم إعدادات المشرف\n\nأزرار القائمة الرئيسية:\n- آية عشوائية: إرسال آية عشوائية\n- إعدادات المشرف: فتح قسم الإعدادات الإدارية\n\nبعد استلام الآية، سيظهر زر الآية التالية أيضًا إذا كانت المنصة تدعم الأزرار المضمنة.",
         "tr": "Natiq Bot Yardım\n\nKullanılabilir komutlar:\n/start - Botu başlat ve ana menüyü göster\n/help - Bu yardım mesajını göster\n/random - Rastgele bir ayet al\n/admin - Yönetici ayarları alanını aç\n\nAna menü düğmeleri:\n- Rastgele Ayet: rastgele bir ayet gönderir\n- Yönetici Ayarları: yönetim ayarları alanını açar\n\nBir ayet aldıktan sonra, mesajlaşma platformu satır içi düğmeleri destekliyorsa Sonraki Ayet düğmesi de görünür.",
     },
-    "admin_settings_placeholder": {
-        "fa": "بخش تنظیمات ادمین فعال است، اما هنوز کامل نشده است. امکانات مدیریتی ربات در این بخش به‌صورت مرحله‌ای اضافه خواهند شد.",
-        "en": "The admin settings area is available, but it is not complete yet. Administrative bot features will be added here incrementally.",
-        "ar": "قسم إعدادات المشرف متاح، لكنه غير مكتمل بعد. ستتم إضافة ميزات إدارة البوت هنا بشكل تدريجي.",
-        "tr": "Yönetici ayarları alanı kullanılabilir, ancak henüz tamamlanmamıştır. Bot yönetim özellikleri buraya aşamalı olarak eklenecektir.",
+    "admin_dashboard": {
+        "fa": "پنل ادمین ربات\n\nشناسه کاربر شما: {user_id}\nتعداد ادمین‌های پیکربندی‌شده: {configured_admin_count}\nپلتفرم: {platform}\nزبان پیش‌فرض ربات: {bot_language}\nآماده بودن کش قرآن: {quran_cache_ready}\nپشتیبانی از دکمه درون‌خطی: {inline_keyboard_supported}\nپشتیبانی از callback query: {callback_query_supported}\n\nاین بخش پایه ادمین اکنون فعال است. در مراحل بعدی می‌توان مدیریت تنظیمات، وضعیت سرویس‌ها و عملیات مدیریتی بیشتر را به آن اضافه کرد.",
+        "en": "Bot Admin Dashboard\n\nYour user ID: {user_id}\nConfigured admin count: {configured_admin_count}\nPlatform: {platform}\nDefault bot language: {bot_language}\nQuran cache ready: {quran_cache_ready}\nInline keyboard support: {inline_keyboard_supported}\nCallback query support: {callback_query_supported}\n\nThe basic admin area is now active. In future iterations, bot settings management, service status, and additional administrative actions can be added here.",
+        "ar": "لوحة تحكم المشرف\n\nمعرّف المستخدم الخاص بك: {user_id}\nعدد المشرفين المهيئين: {configured_admin_count}\nالمنصة: {platform}\nاللغة الافتراضية للبوت: {bot_language}\nجاهزية ذاكرة القرآن: {quran_cache_ready}\nدعم الأزرار المضمنة: {inline_keyboard_supported}\nدعم callback query: {callback_query_supported}\n\nأصبح قسم المشرف الأساسي نشطًا الآن. ويمكن لاحقًا إضافة إدارة إعدادات البوت وحالة الخدمات وإجراءات إدارية إضافية هنا.",
+        "tr": "Bot Yönetici Paneli\n\nKullanıcı kimliğiniz: {user_id}\nYapılandırılmış yönetici sayısı: {configured_admin_count}\nPlatform: {platform}\nVarsayılan bot dili: {bot_language}\nKur'an önbelleği hazır: {quran_cache_ready}\nSatır içi klavye desteği: {inline_keyboard_supported}\nCallback query desteği: {callback_query_supported}\n\nTemel yönetici alanı artık aktiftir. İleride bot ayarları yönetimi, servis durumu ve ek yönetim işlemleri buraya eklenebilir.",
     },
     "admin_access_denied": {
-        "fa": "شما به بخش ادمین دسترسی ندارید.",
-        "en": "You do not have access to the admin area.",
-        "ar": "ليس لديك صلاحية الوصول إلى قسم المشرف.",
-        "tr": "Yönetici alanına erişim izniniz yok.",
+        "fa": "شما به بخش ادمین دسترسی ندارید. برای فعال‌سازی این بخش، شناسه عددی کاربر شما باید در تنظیم `ADMIN_USER_IDS` قرار بگیرد.",
+        "en": "You do not have access to the admin area. To enable this section, your numeric user ID must be included in the `ADMIN_USER_IDS` setting.",
+        "ar": "ليس لديك صلاحية الوصول إلى قسم المشرف. لتفعيل هذا القسم، يجب إضافة معرّف المستخدم الرقمي الخاص بك إلى الإعداد `ADMIN_USER_IDS`.",
+        "tr": "Yönetici alanına erişim izniniz yok. Bu bölümü etkinleştirmek için sayısal kullanıcı kimliğiniz `ADMIN_USER_IDS` ayarına eklenmelidir.",
     },
     "rate_limited": {
         "fa": "شما در مدت کوتاهی درخواست‌های زیادی فرستادید. لطفاً کمی صبر کنید و دوباره تلاش کنید.",

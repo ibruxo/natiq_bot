@@ -17,12 +17,13 @@ Project Charter is available in [`bot.md`](bot.md).
 ```bash
 git clone https://github.com/your-org/your-repo.git
 cd your-repo
-cp .env.example .env
-# edit .env with your settings
+cp .env.example .env.docker
+# edit .env.docker with your settings
+# if you want admin access, also set ADMIN_USER_IDS to your numeric Telegram user ID
 docker compose up -d --build
 ```
 
-The bot service will start inside Docker Compose using your configured environment.
+The bot service will start inside Docker Compose using the values from `.env.docker`.
 
 ### Other methods
 
