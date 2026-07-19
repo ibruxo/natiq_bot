@@ -46,6 +46,7 @@ class ProbeSpec:
     http_method: str = "GET"
     payload: dict[str, Any] | None = None
     accepted_error_descriptions: tuple[str, ...] = ()
+    accepted_status_codes: tuple[int, ...] = ()
 
 
 class APIFeatureChecker:
@@ -87,7 +88,9 @@ class APIFeatureChecker:
                 accepted_error_descriptions=(
                     "bad request: commands are too much",
                     "bad request: can't parse botcommand",
+                    "not implemented (coming soon...)",
                 ),
+                accepted_status_codes=(200, 400, 401, 403, 501),
             ),
             MessengerFeature.PREMIUM: ProbeSpec(method="getUserProfilePhotos"),
             MessengerFeature.DONATE: ProbeSpec(method="getMyCommands"),
@@ -166,6 +169,9 @@ class APIFeatureChecker:
             return True
 
         description = str(payload.get("description") or "").strip().lower()
+
+        if response.status_code in spec.accepted_status_codes:
+            return True
 
         if any(description == item for item in spec.accepted_error_descriptions):
             return True
