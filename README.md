@@ -1,4 +1,4 @@
-# Project Name
+# Natiq Bot
 
 A Telegram bot that engages users with daily Quranic content and other Islamic topics.
 
