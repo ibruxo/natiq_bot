@@ -100,6 +100,23 @@ class ChatRepository:
             await session.refresh(chat)
             return chat
 
+    async def list_group_chats(self) -> list["Chat"]:
+        from app.database.models.chat import Chat
+        from app.core.constants import ChatType
+
+        async with self._database.session() as session:
+            stmt = select(Chat).where(
+                Chat.chat_type.in_(
+                    [
+                        ChatType.GROUP.value,
+                        ChatType.SUPERGROUP.value,
+                        ChatType.CHANNEL.value,
+                    ]
+                )
+            )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
+
     async def list_daily_ayah_enabled(self) -> list["Chat"]:
         from app.database.models.chat import Chat
 

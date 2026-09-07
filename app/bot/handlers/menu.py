@@ -8,34 +8,16 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 from app.bot.handlers.daily_settings import daily_settings
 from app.bot.handlers.random import random_ayah
 from app.bot.handlers.random_page import random_page
-from app.i18n import SupportedLanguage, detect_language, get_message
+from app.i18n import detect_language, get_message
+from app.ui.keyboards.main_menu import main_menu_keyboard, quran_menu_keyboard
 
 MenuAction = Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[None]]
 
-# Maps a main-menu button message key to the handler it triggers.
-#
-# All main-menu buttons share a single MessageHandler (see get_handler()
-# below) because Telegram text messages carry no metadata that identifies
-# which button was pressed other than their visible text. Registering one
-# broad MessageHandler per button would cause the first-registered handler
-# to swallow every text update, since python-telegram-bot stops looking for
-# further handlers in a group once one handler's filters match.
 _MENU_ROUTES: tuple[tuple[str, MenuAction], ...] = (
     ("main_menu_random_button", random_ayah),
     ("main_menu_random_page_button", random_page),
     ("main_menu_daily_settings_button", daily_settings),
 )
-
-
-def _resolve_action(
-    text: str,
-    language: SupportedLanguage,
-) -> MenuAction | None:
-    for message_key, action in _MENU_ROUTES:
-        if text == get_message(message_key, language):
-            return action
-
-    return None
 
 
 async def dispatch_main_menu(
@@ -45,7 +27,6 @@ async def dispatch_main_menu(
     if not update.message or not update.message.text:
         return
 
-    # Skip commands - they should be handled by command handlers
     if update.message.text.startswith("/"):
         return
 
@@ -53,12 +34,29 @@ async def dispatch_main_menu(
         update.effective_user.language_code if update.effective_user else None
     )
 
-    action = _resolve_action(update.message.text, language)
+    text = update.message.text
 
-    if action is None:
+    # Check if Quran button pressed
+    if text == get_message("main_menu_quran_button", language):
+        await update.message.reply_text(
+            get_message("quran_menu_title", language),
+            reply_markup=quran_menu_keyboard(language),
+        )
         return
 
-    await action(update, context)
+    # Check if Back button pressed
+    if text == get_message("main_menu_back_button", language):
+        await update.message.reply_text(
+            get_message("start", language),
+            reply_markup=main_menu_keyboard(language),
+        )
+        return
+
+    # Check submenu routes
+    for message_key, action in _MENU_ROUTES:
+        if text == get_message(message_key, language):
+            await action(update, context)
+            return
 
 
 def get_handler() -> MessageHandler:
