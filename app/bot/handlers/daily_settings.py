@@ -196,6 +196,12 @@ async def _render_daily_settings(
                 callback_data="daily_time_hour",
             ),
         ],
+        [
+            InlineKeyboardButton(
+                "👥 Group & Channel Admin Settings",
+                callback_data="daily_group_settings",
+            ),
+        ],
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -331,7 +337,11 @@ async def daily_settings_callback(
         elif callback_data.startswith("daily_time_set_"):
             time = callback_data.replace("daily_time_set_", "")
             await set_time(update, context, chat_repo, telegram_id, time, language)
-        elif callback_data == "daily_back":
+        elif callback_data == "daily_group_settings":
+            from app.bot.handlers.group_settings import group_settings_command
+
+            await group_settings_command(update, context)
+            return
             await _render_daily_settings(update, context, language)
         elif callback_data == "daily_exit":
             # Exit daily settings and show main menu
