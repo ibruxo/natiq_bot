@@ -276,6 +276,31 @@ async def _render_chat_settings(
         )
 
 
+async def _reply_or_edit(
+    update: Update,
+    text: str,
+    *,
+    reply_markup: InlineKeyboardMarkup | None = None,
+    parse_mode: str | None = None,
+) -> None:
+    if update.callback_query and update.callback_query.message:
+        try:
+            await update.callback_query.message.edit_text(
+                text,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode,
+            )
+            return
+        except Exception:
+            pass
+    if update.effective_message:
+        await update.effective_message.reply_text(
+            text,
+            reply_markup=reply_markup,
+            parse_mode=parse_mode,
+        )
+
+
 @rate_limit(RateLimitRule(limit=5, window_seconds=60))
 async def group_settings_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -292,7 +317,7 @@ async def group_settings_command(
 
     chat_repo: ChatRepository = context.application.bot_data.get("user_repository")
     if not chat_repo:
-        await update.message.reply_text("Service temporarily unavailable.")
+        await _reply_or_edit(update, "Service temporarily unavailable.")
         return
 
     logger.info(
@@ -305,8 +330,9 @@ async def group_settings_command(
     if chat.type in ("group", "supergroup", "channel"):
         is_admin = await _is_chat_admin(update, context, chat.id)
         if not is_admin:
-            await update.message.reply_text(
-                "❌ You must be an administrator or owner of this chat with deletion and management permissions to configure its settings."
+            await _reply_or_edit(
+                update,
+                "❌ You must be an administrator or owner of this chat with deletion and management permissions to configure its settings.",
             )
             return
 
@@ -324,9 +350,10 @@ async def group_settings_command(
                 admin_chats.append(c)
 
         if not admin_chats:
-            await update.message.reply_text(
+            await _reply_or_edit(
+                update,
                 "ℹ️ You are not currently an administrator in any groups or channels where this bot is added.\n\n"
-                "Add the bot to your group or channel as an admin (with delete/management permissions) and use /group_settings."
+                "Add the bot to your group or channel as an admin (with delete/management permissions) and use /group_settings.",
             )
             return
 
@@ -351,7 +378,8 @@ async def group_settings_command(
 
         keyboard.append([InlineKeyboardButton("❌ Close", callback_data="gset_exit")])
 
-        await update.message.reply_text(
+        await _reply_or_edit(
+            update,
             "👥 *Group & Channel Admin Settings*\n\nSelect a group or channel you manage to configure:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown",
