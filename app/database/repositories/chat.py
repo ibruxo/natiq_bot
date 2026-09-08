@@ -100,6 +100,37 @@ class ChatRepository:
             await session.refresh(chat)
             return chat
 
+    async def save_chat_admins(self, chat_id: int, chat_type: str, admin_ids: list[int]) -> None:
+        from app.database.models.chat_admin import ChatAdmin
+        from sqlalchemy import delete
+
+        async with self._database.session() as session:
+            await session.execute(delete(ChatAdmin).where(ChatAdmin.chat_id == chat_id))
+            for admin_id in admin_ids:
+                session.add(
+                    ChatAdmin(
+                        chat_id=chat_id,
+                        chat_type=chat_type,
+                        admin_telegram_id=admin_id,
+                    )
+                )
+            await session.commit()
+            logger.info("Saved %d admins for chat_id=%s", len(admin_ids), chat_id)
+
+    async def list_chats_administered_by(self, user_id: int) -> list[Chat]:
+        from app.database.models.chat import Chat
+        from app.database.models.chat_admin import ChatAdmin
+
+        async with self._database.session() as session:
+            stmt = (
+                select(Chat)
+                .join(ChatAdmin, Chat.chat_id == ChatAdmin.chat_id)
+                .where(ChatAdmin.admin_telegram_id == user_id)
+                .distinct()
+            )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
+
     async def list_group_chats(self) -> list["Chat"]:
         from app.database.models.chat import Chat
         from app.core.constants import ChatType

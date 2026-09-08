@@ -56,27 +56,30 @@ async def _is_chat_admin(
     if not update.effective_user:
         return False
 
+    chat_repo: ChatRepository = context.application.bot_data.get("user_repository")
     user_id = update.effective_user.id
     try:
         admins = await context.bot.get_chat_administrators(chat_id)
+        admin_ids = [adm.user.id for adm in admins]
+
+        if chat_repo:
+            chat_type = "group"
+            try:
+                tg_chat = await context.bot.get_chat(chat_id)
+                chat_type = tg_chat.type
+            except Exception:
+                pass
+            await chat_repo.save_chat_admins(chat_id, chat_type, admin_ids)
+
         for admin in admins:
             if admin.user.id == user_id:
                 status = admin.status
                 if status in ("creator", "chat_owner", "administrator"):
-                    can_delete = getattr(admin, "can_delete_messages", False)
-                    can_post = getattr(admin, "can_post_messages", False)
-                    can_invite = getattr(admin, "can_invite_users", False)
-                    can_manage = getattr(admin, "can_manage_chat", False)
-
                     logger.info(
-                        "Admin verified for user=%s in chat_id=%s: status=%s, can_delete=%s, can_post=%s, can_invite=%s, can_manage=%s",
+                        "Admin / creator verified for user=%s in chat_id=%s: status=%s",
                         user_id,
                         chat_id,
                         status,
-                        can_delete,
-                        can_post,
-                        can_invite,
-                        can_manage,
                     )
                     return True
 
@@ -88,14 +91,6 @@ async def _is_chat_admin(
             chat_id,
             e,
         )
-        try:
-            member = await context.bot.get_chat_member(chat_id, user_id)
-            if member.status in ("creator", "chat_owner"):
-                return True
-            if member.status == "administrator":
-                return getattr(member, "can_delete_messages", False)
-        except Exception:
-            pass
         return False
 
 
@@ -329,13 +324,10 @@ async def group_settings_command(
         )
         await _render_chat_settings(update, context, chat.id, language)
     else:
-        # Private chat: list all groups/channels where user is a qualified admin
-        all_chats = await chat_repo.list_group_chats()
-        admin_chats = []
-
-        for c in all_chats:
-            if await _is_chat_admin(update, context, c.chat_id):
-                admin_chats.append(c)
+        # Private chat: list all groups/channels where user is recorded as an admin in chat_admins
+        admin_chats = await chat_repo.list_chats_administered_by(
+            update.effective_user.id
+        )
 
         if not admin_chats:
             await _reply_or_edit(
@@ -398,11 +390,9 @@ async def group_settings_callback(
 
     try:
         if data == "gset_list":
-            all_chats = await chat_repo.list_group_chats()
-            admin_chats = []
-            for c in all_chats:
-                if await _is_chat_admin(update, context, c.chat_id):
-                    admin_chats.append(c)
+            admin_chats = await chat_repo.list_chats_administered_by(
+                update.effective_user.id
+            )
 
             if not admin_chats:
                 await _safe_edit_message_text(
