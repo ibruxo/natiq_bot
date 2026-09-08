@@ -10,6 +10,7 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
     ChatMemberHandler,
+    MessageHandler,
 )
 from zoneinfo import ZoneInfo
 
@@ -61,26 +62,14 @@ async def _is_chat_admin(
         for admin in admins:
             if admin.user.id == user_id:
                 status = admin.status
-                if status in ("creator", "chat_owner"):
-                    logger.info(
-                        "User %s is chat owner/creator for chat_id=%s", user_id, chat_id
-                    )
-                    return True
-
-                if status == "administrator":
-                    # Admins should have at least deleting messages and adding posts/inviting/managing permission
+                if status in ("creator", "chat_owner", "administrator"):
                     can_delete = getattr(admin, "can_delete_messages", False)
                     can_post = getattr(admin, "can_post_messages", False)
                     can_invite = getattr(admin, "can_invite_users", False)
                     can_manage = getattr(admin, "can_manage_chat", False)
-                    can_change = getattr(admin, "can_change_info", False)
 
-                    # Required: can_delete_messages and at least one additional publishing/management permission
-                    has_required = can_delete and (
-                        can_post or can_invite or can_manage or can_change
-                    )
                     logger.info(
-                        "Permission check for user=%s in chat_id=%s: status=%s, can_delete=%s, can_post=%s, can_invite=%s, can_manage=%s, passed=%s",
+                        "Admin verified for user=%s in chat_id=%s: status=%s, can_delete=%s, can_post=%s, can_invite=%s, can_manage=%s",
                         user_id,
                         chat_id,
                         status,
@@ -88,9 +77,8 @@ async def _is_chat_admin(
                         can_post,
                         can_invite,
                         can_manage,
-                        has_required,
                     )
-                    return has_required
+                    return True
 
         logger.info("User %s is not a qualified admin in chat_id=%s", user_id, chat_id)
         return False
@@ -696,3 +684,34 @@ def get_group_settings_callback_handler() -> CallbackQueryHandler:
 
 def get_chat_member_handler() -> ChatMemberHandler:
     return ChatMemberHandler(track_chat_membership, ChatMemberHandler.MY_CHAT_MEMBER)
+
+
+async def auto_register_group_message(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Auto-register group or supergroup when any message is received."""
+    chat = update.effective_chat
+    if not chat or chat.type not in ("group", "supergroup"):
+        return
+
+    chat_repo: ChatRepository = context.application.bot_data.get("user_repository")
+    if chat_repo:
+        try:
+            language = detect_language(
+                update.effective_user.language_code
+                if update.effective_user
+                else None
+            )
+            await chat_repo.get_or_create(
+                telegram_id=chat.id, chat_type=chat.type, language=language
+            )
+        except Exception:
+            pass
+
+
+def get_group_message_handler() -> MessageHandler:
+    from telegram.ext import filters
+    return MessageHandler(
+        filters.ChatType.GROUPS & ~filters.COMMAND,
+        auto_register_group_message,
+    )

@@ -20,6 +20,7 @@ from app.bot.handlers.group_settings import (
     get_group_settings_handler,
     get_group_settings_callback_handler,
     get_chat_member_handler,
+    get_group_message_handler,
 )
 
 
@@ -33,6 +34,7 @@ def register_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("dailysettings", daily_settings))
     application.add_handler(get_group_settings_handler())
     application.add_handler(get_chat_member_handler())
+    application.add_handler(get_group_message_handler())
     application.add_handler(get_main_menu_handler())
 
     # Callback handlers are registered unconditionally. Inline keyboards and
