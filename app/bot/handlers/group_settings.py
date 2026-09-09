@@ -56,7 +56,14 @@ async def _is_chat_admin(
     if not update.effective_user:
         return False
 
-    chat_repo: ChatRepository = context.application.bot_data.get("user_repository")
+    chat_repo: ChatRepository | None = context.application.bot_data.get(
+        "user_repository"
+    )
+    if not chat_repo:
+        container = context.application.bot_data.get("container")
+        if container and hasattr(container, "chat_repository"):
+            chat_repo = container.chat_repository
+
     user_id = update.effective_user.id
 
     # 1. Try get_chat_member first (works even if bot is not admin in the group)
