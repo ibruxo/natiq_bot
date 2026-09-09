@@ -32,12 +32,24 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("uuid", name=op.f("pk_chat_admins")),
     )
-    op.create_index(op.f("ix_chat_admins_chat_id"), "chat_admins", ["chat_id"], unique=False)
-    op.create_index(op.f("ix_chat_admins_admin_telegram_id"), "chat_admins", ["admin_telegram_id"], unique=False)
+    op.create_index(
+        op.f("ix_chat_admins_chat_id"), "chat_admins", ["chat_id"], unique=False
+    )
+    op.create_index(
+        op.f("ix_chat_admins_admin_telegram_id"),
+        "chat_admins",
+        ["admin_telegram_id"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:
     op.drop_index(op.f("ix_chat_admins_admin_telegram_id"), table_name="chat_admins")
     op.drop_index(op.f("ix_chat_admins_chat_id"), table_name="chat_admins")
     op.drop_table("chat_admins")
-    op.add_column("chats", sa.Column("is_admin", sa.Boolean(), server_default=sa.text("false"), nullable=False))
+    op.add_column(
+        "chats",
+        sa.Column(
+            "is_admin", sa.Boolean(), server_default=sa.text("false"), nullable=False
+        ),
+    )

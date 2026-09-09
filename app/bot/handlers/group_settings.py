@@ -58,6 +58,33 @@ async def _is_chat_admin(
 
     chat_repo: ChatRepository = context.application.bot_data.get("user_repository")
     user_id = update.effective_user.id
+
+    # 1. Try get_chat_member first (works even if bot is not admin in the group)
+    try:
+        member = await context.bot.get_chat_member(chat_id, user_id)
+        if member.status in ("creator", "chat_owner", "administrator"):
+            logger.info(
+                "User %s verified as admin in chat_id=%s via get_chat_member (status=%s)",
+                user_id,
+                chat_id,
+                member.status,
+            )
+            if chat_repo:
+                try:
+                    tg_chat = await context.bot.get_chat(chat_id)
+                    await chat_repo.add_chat_admin(chat_id, tg_chat.type, user_id)
+                except Exception:
+                    pass
+            return True
+    except Exception as e:
+        logger.debug(
+            "get_chat_member check failed for chat_id=%s, user_id=%s: error=%s",
+            chat_id,
+            user_id,
+            e,
+        )
+
+    # 2. Fallback: try get_chat_administrators
     try:
         admins = await context.bot.get_chat_administrators(chat_id)
         admin_ids = [adm.user.id for adm in admins]
@@ -76,22 +103,29 @@ async def _is_chat_admin(
                 status = admin.status
                 if status in ("creator", "chat_owner", "administrator"):
                     logger.info(
-                        "Admin / creator verified for user=%s in chat_id=%s: status=%s",
+                        "Admin / creator verified for user=%s in chat_id=%s via get_chat_administrators (status=%s)",
                         user_id,
                         chat_id,
                         status,
                     )
+                    if chat_repo:
+                        try:
+                            tg_chat = await context.bot.get_chat(chat_id)
+                            await chat_repo.add_chat_admin(
+                                chat_id, tg_chat.type, user_id
+                            )
+                        except Exception:
+                            pass
                     return True
-
-        logger.info("User %s is not a qualified admin in chat_id=%s", user_id, chat_id)
-        return False
     except Exception as e:
         logger.warning(
             "Failed to retrieve chat administrators for chat_id=%s: error=%s",
             chat_id,
             e,
         )
-        return False
+
+    logger.info("User %s is not a qualified admin in chat_id=%s", user_id, chat_id)
+    return False
 
 
 async def track_chat_membership(
@@ -324,10 +358,19 @@ async def group_settings_command(
         )
         await _render_chat_settings(update, context, chat.id, language)
     else:
-        # Private chat: list all groups/channels where user is recorded as an admin in chat_admins
-        admin_chats = await chat_repo.list_chats_administered_by(
+        # Private chat: combine chat_admins table and all registered group chats
+        all_chats = await chat_repo.list_group_chats()
+        admin_db_chats = await chat_repo.list_chats_administered_by(
             update.effective_user.id
         )
+        seen_chat_ids = {c.chat_id for c in admin_db_chats}
+        admin_chats = list(admin_db_chats)
+
+        for c in all_chats:
+            if c.chat_id not in seen_chat_ids:
+                if await _is_chat_admin(update, context, c.chat_id):
+                    admin_chats.append(c)
+                    seen_chat_ids.add(c.chat_id)
 
         if not admin_chats:
             await _reply_or_edit(
@@ -390,9 +433,18 @@ async def group_settings_callback(
 
     try:
         if data == "gset_list":
-            admin_chats = await chat_repo.list_chats_administered_by(
+            all_chats = await chat_repo.list_group_chats()
+            admin_db_chats = await chat_repo.list_chats_administered_by(
                 update.effective_user.id
             )
+            seen_chat_ids = {c.chat_id for c in admin_db_chats}
+            admin_chats = list(admin_db_chats)
+
+            for c in all_chats:
+                if c.chat_id not in seen_chat_ids:
+                    if await _is_chat_admin(update, context, c.chat_id):
+                        admin_chats.append(c)
+                        seen_chat_ids.add(c.chat_id)
 
             if not admin_chats:
                 await _safe_edit_message_text(
@@ -457,7 +509,7 @@ async def group_settings_callback(
         elif action == "toggle":
             new_status = not chat.daily_ayah
             chat = await chat_repo.update_preferences(
-                chat_id=chat_id, daily_ayah=new_status
+                telegram_id=chat_id, daily_ayah=new_status
             )
             if chat:
                 schedule_user_daily_ayah(context.application, chat)
@@ -471,7 +523,7 @@ async def group_settings_callback(
         elif action == "type":
             new_type = "page" if chat.daily_type == "ayah" else "ayah"
             chat = await chat_repo.update_preferences(
-                chat_id=chat_id, daily_type=new_type
+                telegram_id=chat_id, daily_type=new_type
             )
             if chat:
                 schedule_user_daily_ayah(context.application, chat)
@@ -525,7 +577,7 @@ async def group_settings_callback(
         elif data.startswith(f"gset_ts_{chat_id}_"):
             time_str = parts[3]
             chat = await chat_repo.update_preferences(
-                chat_id=chat_id, daily_time=time_str
+                telegram_id=chat_id, daily_time=time_str
             )
             if chat:
                 schedule_user_daily_ayah(context.application, chat)
@@ -579,7 +631,7 @@ async def group_settings_callback(
             try:
                 ZoneInfo(tz_name)
                 chat = await chat_repo.update_preferences(
-                    chat_id=chat_id, timezone=tz_name
+                    telegram_id=chat_id, timezone=tz_name
                 )
                 if chat:
                     schedule_user_daily_ayah(context.application, chat)
@@ -688,9 +740,7 @@ async def auto_register_group_message(
     if chat_repo:
         try:
             language = detect_language(
-                update.effective_user.language_code
-                if update.effective_user
-                else None
+                update.effective_user.language_code if update.effective_user else None
             )
             await chat_repo.get_or_create(
                 telegram_id=chat.id, chat_type=chat.type, language=language
@@ -701,6 +751,7 @@ async def auto_register_group_message(
 
 def get_group_message_handler() -> MessageHandler:
     from telegram.ext import filters
+
     return MessageHandler(
         filters.ChatType.GROUPS & ~filters.COMMAND,
         auto_register_group_message,

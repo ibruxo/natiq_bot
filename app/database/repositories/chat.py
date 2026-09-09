@@ -100,7 +100,29 @@ class ChatRepository:
             await session.refresh(chat)
             return chat
 
-    async def save_chat_admins(self, chat_id: int, chat_type: str, admin_ids: list[int]) -> None:
+    async def add_chat_admin(self, chat_id: int, chat_type: str, admin_id: int) -> None:
+        from app.database.models.chat_admin import ChatAdmin
+
+        async with self._database.session() as session:
+            stmt = select(ChatAdmin).where(
+                ChatAdmin.chat_id == chat_id,
+                ChatAdmin.admin_telegram_id == admin_id,
+            )
+            existing = await session.scalar(stmt)
+            if existing is None:
+                session.add(
+                    ChatAdmin(
+                        chat_id=chat_id,
+                        chat_type=chat_type,
+                        admin_telegram_id=admin_id,
+                    )
+                )
+                await session.commit()
+                logger.info("Added admin_id=%s for chat_id=%s", admin_id, chat_id)
+
+    async def save_chat_admins(
+        self, chat_id: int, chat_type: str, admin_ids: list[int]
+    ) -> None:
         from app.database.models.chat_admin import ChatAdmin
         from sqlalchemy import delete
 
