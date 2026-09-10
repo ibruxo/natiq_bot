@@ -87,8 +87,14 @@ async def _is_chat_admin(
                     try:
                         admins = await context.bot.get_chat_administrators(chat_id)
                         admin_ids = [adm.user.id for adm in admins]
-                        await chat_repo.save_chat_admins(chat_id, tg_chat.type, admin_ids)
-                        logger.info("Successfully populated %d admins into chat_admins for chat_id=%s", len(admin_ids), chat_id)
+                        await chat_repo.save_chat_admins(
+                            chat_id, tg_chat.type, admin_ids
+                        )
+                        logger.info(
+                            "Successfully populated %d admins into chat_admins for chat_id=%s",
+                            len(admin_ids),
+                            chat_id,
+                        )
                     except Exception as adm_err:
                         logger.warning("Could not fetch full admin list: %s", adm_err)
                         await chat_repo.add_chat_admin(chat_id, tg_chat.type, user_id)
@@ -120,7 +126,11 @@ async def _is_chat_admin(
             except Exception:
                 pass
             await chat_repo.save_chat_admins(chat_id, chat_type, admin_ids)
-            logger.info("Successfully populated %d admins into chat_admins via fallback for chat_id=%s", len(admin_ids), chat_id)
+            logger.info(
+                "Successfully populated %d admins into chat_admins via fallback for chat_id=%s",
+                len(admin_ids),
+                chat_id,
+            )
 
         for admin in admins:
             if admin.user.id == user_id:
