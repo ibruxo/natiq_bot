@@ -66,7 +66,7 @@ async def _is_chat_admin(
 
     user_id = update.effective_user.id
 
-    # 1. Try get_chat_member first (works even if bot is not admin in the group)
+    # 1. Try get_chat_member first, then fetch all administrators to populate chat_admins
     try:
         member = await context.bot.get_chat_member(chat_id, user_id)
         if member.status in ("creator", "chat_owner", "administrator"):
@@ -79,9 +79,21 @@ async def _is_chat_admin(
             if chat_repo:
                 try:
                     tg_chat = await context.bot.get_chat(chat_id)
-                    await chat_repo.add_chat_admin(chat_id, tg_chat.type, user_id)
-                except Exception:
-                    pass
+                    await chat_repo.get_or_create(
+                        telegram_id=chat_id,
+                        chat_type=tg_chat.type,
+                    )
+                    # Fetch all admins of this chat to save into chat_admins
+                    try:
+                        admins = await context.bot.get_chat_administrators(chat_id)
+                        admin_ids = [adm.user.id for adm in admins]
+                        await chat_repo.save_chat_admins(chat_id, tg_chat.type, admin_ids)
+                        logger.info("Successfully populated %d admins into chat_admins for chat_id=%s", len(admin_ids), chat_id)
+                    except Exception as adm_err:
+                        logger.warning("Could not fetch full admin list: %s", adm_err)
+                        await chat_repo.add_chat_admin(chat_id, tg_chat.type, user_id)
+                except Exception as e:
+                    logger.warning("Failed to save chat or admin to database: %s", e)
             return True
     except Exception as e:
         logger.debug(
@@ -91,7 +103,7 @@ async def _is_chat_admin(
             e,
         )
 
-    # 2. Fallback: try get_chat_administrators
+    # 2. Fallback: try get_chat_administrators directly
     try:
         admins = await context.bot.get_chat_administrators(chat_id)
         admin_ids = [adm.user.id for adm in admins]
@@ -101,9 +113,14 @@ async def _is_chat_admin(
             try:
                 tg_chat = await context.bot.get_chat(chat_id)
                 chat_type = tg_chat.type
+                await chat_repo.get_or_create(
+                    telegram_id=chat_id,
+                    chat_type=chat_type,
+                )
             except Exception:
                 pass
             await chat_repo.save_chat_admins(chat_id, chat_type, admin_ids)
+            logger.info("Successfully populated %d admins into chat_admins via fallback for chat_id=%s", len(admin_ids), chat_id)
 
         for admin in admins:
             if admin.user.id == user_id:
@@ -115,14 +132,6 @@ async def _is_chat_admin(
                         chat_id,
                         status,
                     )
-                    if chat_repo:
-                        try:
-                            tg_chat = await context.bot.get_chat(chat_id)
-                            await chat_repo.add_chat_admin(
-                                chat_id, tg_chat.type, user_id
-                            )
-                        except Exception:
-                            pass
                     return True
     except Exception as e:
         logger.warning(
@@ -363,6 +372,8 @@ async def group_settings_command(
         await chat_repo.get_or_create(
             telegram_id=chat.id, chat_type=chat.type, language=language
         )
+        if update.effective_user:
+            await chat_repo.add_chat_admin(chat.id, chat.type, update.effective_user.id)
         await _render_chat_settings(update, context, chat.id, language)
     else:
         # Private chat: combine chat_admins table and all registered group chats
