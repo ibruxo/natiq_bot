@@ -16,9 +16,9 @@ from app.bot.handlers.superadmin import (
     admin_settings_entry,
     get_reload_cache_handler,
 )
-from app.bot.handlers.group_settings import (
-    get_group_settings_handler,
-    get_group_settings_callback_handler,
+from app.bot.handlers.admin_settings import (
+    get_admin_settings_handler,
+    get_admin_settings_callback_handler,
     get_chat_member_handler,
     get_group_message_handler,
 )
@@ -32,7 +32,7 @@ def register_handlers(application: Application) -> None:
     application.add_handler(get_random_handler())
     application.add_handler(get_random_page_handler())
     application.add_handler(CommandHandler("dailysettings", daily_settings))
-    application.add_handler(get_group_settings_handler())
+    application.add_handler(get_admin_settings_handler())
     application.add_handler(get_chat_member_handler())
     application.add_handler(get_group_message_handler())
     application.add_handler(get_main_menu_handler())
@@ -54,5 +54,5 @@ def register_handlers(application: Application) -> None:
         )
     )
 
-    # Group/channel admin settings callbacks are scoped to their own "gset_" prefix.
-    application.add_handler(get_group_settings_callback_handler())
+    # Admin settings callbacks are scoped to their own "aset_" prefix.
+    application.add_handler(get_admin_settings_callback_handler())
