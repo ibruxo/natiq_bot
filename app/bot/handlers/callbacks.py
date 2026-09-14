@@ -199,7 +199,7 @@ async def _handle_next_ayah(
             update,
             context,
             ayah,
-            edit=True,
+            edit=False,
         )
 
     except Exception:
@@ -259,7 +259,7 @@ async def random_ayah_callback(
             update,
             context,
             ayah,
-            edit=True,
+            edit=False,
         )
 
     except Exception:
@@ -333,14 +333,14 @@ async def _handle_next_page(
                 update,
                 context,
                 page_ayahs,
-                edit=True,
+                edit=False,
             )
         else:
             await _reply_with_page(
                 update,
                 context,
                 page_ayahs,
-                edit=True,
+                edit=False,
             )
 
     except Exception:
