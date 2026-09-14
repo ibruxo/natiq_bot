@@ -4,9 +4,21 @@ import logging
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
-from telegram import CallbackQuery, ChatMemberUpdated, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    CallbackQuery,
+    ChatMemberUpdated,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Update,
+)
 from telegram.error import BadRequest
-from telegram.ext import CallbackQueryHandler, ChatMemberHandler, CommandHandler, ContextTypes, MessageHandler
+from telegram.ext import (
+    CallbackQueryHandler,
+    ChatMemberHandler,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+)
 
 from app.bot.handlers.daily_settings import TIMEZONE_CONTINENTS
 from app.core.config import get_settings
@@ -93,7 +105,9 @@ async def track_chat_membership(
         if chat.type in ("group", "supergroup", "channel"):
             try:
                 language = detect_language(
-                    update.effective_user.language_code if update.effective_user else None
+                    update.effective_user.language_code
+                    if update.effective_user
+                    else None
                 )
                 db_chat = await chat_repo.get_or_create(
                     telegram_id=chat.id,
@@ -102,6 +116,7 @@ async def track_chat_membership(
                     enable_daily_ayah=True,
                 )
                 from app.bot.jobs.daily_ayah import schedule_user_daily_ayah
+
                 schedule_user_daily_ayah(context.application, db_chat)
                 logger.info(
                     "Successfully registered and scheduled daily ayah for added chat: chat_id=%s",
@@ -214,7 +229,10 @@ async def _render_chat_settings(
 
     if update.callback_query:
         await _safe_edit_message_text(
-            update.callback_query, message, reply_markup=reply_markup, parse_mode="Markdown"
+            update.callback_query,
+            message,
+            reply_markup=reply_markup,
+            parse_mode="Markdown",
         )
     else:
         await update.message.reply_text(
@@ -434,7 +452,10 @@ async def admin_settings_callback(
         chat_id = int(parts[2])
 
         settings = get_settings()
-        is_superadmin = update.effective_user and update.effective_user.id in settings.admin_user_ids
+        is_superadmin = (
+            update.effective_user
+            and update.effective_user.id in settings.admin_user_ids
+        )
 
         if not is_superadmin and not await _is_chat_admin(update, context, chat_id):
             await query.answer(
@@ -458,6 +479,7 @@ async def admin_settings_callback(
             )
             if chat:
                 from app.bot.jobs.daily_ayah import schedule_user_daily_ayah
+
                 schedule_user_daily_ayah(context.application, chat)
             logger.info(
                 "Admin updated daily_ayah status: chat_id=%s, daily_ayah=%s",
@@ -473,6 +495,7 @@ async def admin_settings_callback(
             )
             if chat:
                 from app.bot.jobs.daily_ayah import schedule_user_daily_ayah
+
                 schedule_user_daily_ayah(context.application, chat)
             logger.info(
                 "Admin updated daily_type: chat_id=%s, daily_type=%s",
@@ -528,6 +551,7 @@ async def admin_settings_callback(
             )
             if chat:
                 from app.bot.jobs.daily_ayah import schedule_user_daily_ayah
+
                 schedule_user_daily_ayah(context.application, chat)
             logger.info(
                 "Admin updated daily time: chat_id=%s, time=%s",
@@ -583,6 +607,7 @@ async def admin_settings_callback(
                 )
                 if chat:
                     from app.bot.jobs.daily_ayah import schedule_user_daily_ayah
+
                     schedule_user_daily_ayah(context.application, chat)
                 logger.info(
                     "Admin updated timezone: chat_id=%s, timezone=%s",
