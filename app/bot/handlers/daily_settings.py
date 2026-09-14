@@ -170,7 +170,9 @@ async def _render_daily_settings(
     current_time = chat.daily_time or get_settings().DAILY_AYAH_DEFAULT_TIME
     current_type = chat.daily_type or "ayah"
     delivery_mode = chat.delivery_mode or "random"
-    delivery_mode_str = "🔀 Random" if delivery_mode == "random" else "🔢 Sequential (Order)"
+    delivery_mode_str = (
+        "🔀 Random" if delivery_mode == "random" else "🔢 Sequential (Order)"
+    )
     status_str = "🟢 Enabled" if chat.daily_ayah else "🔴 Disabled"
     settings = get_settings()
 
