@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 import httpx
+from telegram import Update
 from telegram.error import InvalidToken
 
 from app.api.checker import APIFeatureChecker
@@ -113,6 +114,7 @@ async def main() -> None:
             poll_interval=2.0,
             timeout=30,
             bootstrap_retries=-1,
+            allowed_updates=Update.ALL_TYPES,
         )
 
         polling_started = True

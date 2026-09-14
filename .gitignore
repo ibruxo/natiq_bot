@@ -23,5 +23,8 @@ __pycache__/
 quran_bot.egg-info
 *.egg-info/
 
+# Ignore Build
+build/
+
 # OS
 .DS_Store

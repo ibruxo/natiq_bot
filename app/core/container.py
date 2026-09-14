@@ -100,7 +100,7 @@ class Container:
         configure_rate_limiter(self._redis)
         logger.info("Container startup completed (databases connected).")
 
-    async def load_cache(self) -> None:
+    async def load_cache(self) -> bool:
         """
         Load Quran cache after startup.
         """
@@ -109,6 +109,7 @@ class Container:
             logger.warning("Quran cache failed to load.")
         else:
             logger.info("Quran cache loaded successfully.")
+        return self._quran_cache_ready
 
     async def reload_quran_cache(self) -> bool:
         """

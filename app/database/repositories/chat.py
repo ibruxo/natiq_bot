@@ -100,6 +100,98 @@ class ChatRepository:
             await session.refresh(chat)
             return chat
 
+    async def add_chat_admin(self, chat_id: int, chat_type: str, admin_id: int) -> None:
+        from app.database.models.chat_admin import ChatAdmin
+
+        try:
+            async with self._database.session() as session:
+                stmt = select(ChatAdmin).where(
+                    ChatAdmin.chat_id == chat_id,
+                    ChatAdmin.admin_telegram_id == admin_id,
+                )
+                existing = await session.scalar(stmt)
+                if existing is None:
+                    session.add(
+                        ChatAdmin(
+                            chat_id=chat_id,
+                            chat_type=chat_type,
+                            admin_telegram_id=admin_id,
+                        )
+                    )
+                    await session.commit()
+                    logger.info(
+                        "--> Successfully added admin_id=%s for chat_id=%s to chat_admins table",
+                        admin_id,
+                        chat_id,
+                    )
+                else:
+                    logger.debug(
+                        "--> Admin admin_id=%s for chat_id=%s already in chat_admins",
+                        admin_id,
+                        chat_id,
+                    )
+        except Exception as exc:
+            logger.exception("Failed in add_chat_admin: error=%s", exc)
+
+    async def save_chat_admins(
+        self, chat_id: int, chat_type: str, admin_ids: list[int]
+    ) -> None:
+        from app.database.models.chat_admin import ChatAdmin
+        from sqlalchemy import delete
+
+        try:
+            async with self._database.session() as session:
+                await session.execute(
+                    delete(ChatAdmin).where(ChatAdmin.chat_id == chat_id)
+                )
+                for admin_id in admin_ids:
+                    session.add(
+                        ChatAdmin(
+                            chat_id=chat_id,
+                            chat_type=chat_type,
+                            admin_telegram_id=admin_id,
+                        )
+                    )
+                await session.commit()
+                logger.info(
+                    "--> Saved %d admins for chat_id=%s into chat_admins table",
+                    len(admin_ids),
+                    chat_id,
+                )
+        except Exception as exc:
+            logger.exception("Failed in save_chat_admins: error=%s", exc)
+
+    async def list_chats_administered_by(self, user_id: int) -> list[Chat]:
+        from app.database.models.chat import Chat
+        from app.database.models.chat_admin import ChatAdmin
+
+        async with self._database.session() as session:
+            stmt = (
+                select(Chat)
+                .join(ChatAdmin, Chat.chat_id == ChatAdmin.chat_id)
+                .where(ChatAdmin.admin_telegram_id == user_id)
+                .distinct()
+            )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
+
+    async def list_group_chats(self) -> list["Chat"]:
+        from app.database.models.chat import Chat
+        from app.core.constants import ChatType
+
+        async with self._database.session() as session:
+            stmt = select(Chat).where(
+                Chat.chat_type.in_(
+                    [
+                        ChatType.GROUP.value,
+                        ChatType.SUPERGROUP.value,
+                        ChatType.CHANNEL.value,
+                    ]
+                )
+            )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
+
     async def list_daily_ayah_enabled(self) -> list["Chat"]:
         from app.database.models.chat import Chat
 

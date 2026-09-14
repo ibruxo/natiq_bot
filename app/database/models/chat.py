@@ -38,9 +38,6 @@ class Chat(Base, UUIDMixin, TimestampMixin):
         String(10), default="ayah"
     )  # "ayah" or "page"
 
-    # Admin status
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-
     # Delivery tracking
     last_daily_sent_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 

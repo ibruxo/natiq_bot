@@ -169,6 +169,7 @@ async def _render_daily_settings(
     current_tz = chat.timezone or get_settings().DAILY_AYAH_DEFAULT_TIMEZONE
     current_time = chat.daily_time or get_settings().DAILY_AYAH_DEFAULT_TIME
     current_type = chat.daily_type or "ayah"
+    status_str = "🟢 Enabled" if chat.daily_ayah else "🔴 Disabled"
     settings = get_settings()
 
     message = get_message("daily_settings_current", language).format(
@@ -176,10 +177,21 @@ async def _render_daily_settings(
         time=current_time,
         type=current_type,
     )
-    message = f"{message}\n\n📱 {settings.BOT_USERNAME}"
+    message = f"📊 *Daily Ayah Status*: {status_str}\n\n{message}\n\n📱 {settings.BOT_USERNAME}"
+
+    toggle_status_text = (
+        "Disable Daily Ayah" if chat.daily_ayah else "Enable Daily Ayah"
+    )
+    toggle_status_icon = "🔴" if chat.daily_ayah else "🟢"
 
     # Create inline keyboard for settings navigation
     keyboard = [
+        [
+            InlineKeyboardButton(
+                f"{toggle_status_icon} {toggle_status_text}",
+                callback_data="daily_toggle_status",
+            ),
+        ],
         [
             InlineKeyboardButton(
                 get_message("daily_settings_type", language),
@@ -194,6 +206,12 @@ async def _render_daily_settings(
             InlineKeyboardButton(
                 get_message("daily_settings_time", language),
                 callback_data="daily_time_hour",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                "⚙️ Admin Settings",
+                callback_data="daily_admin_settings",
             ),
         ],
     ]
@@ -331,8 +349,19 @@ async def daily_settings_callback(
         elif callback_data.startswith("daily_time_set_"):
             time = callback_data.replace("daily_time_set_", "")
             await set_time(update, context, chat_repo, telegram_id, time, language)
-        elif callback_data == "daily_back":
+        elif callback_data == "daily_toggle_status":
+            new_status = not chat.daily_ayah
+            chat = await chat_repo.update_preferences(
+                telegram_id=telegram_id, daily_ayah=new_status
+            )
+            if chat:
+                schedule_user_daily_ayah(context.application, chat)
             await _render_daily_settings(update, context, language)
+        elif callback_data == "daily_admin_settings":
+            from app.bot.handlers.admin_settings import admin_settings_command
+
+            await admin_settings_command(update, context)
+            return
         elif callback_data == "daily_exit":
             # Exit daily settings and show main menu
             settings = get_settings()

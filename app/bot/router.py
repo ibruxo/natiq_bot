@@ -16,7 +16,12 @@ from app.bot.handlers.superadmin import (
     admin_settings_entry,
     get_reload_cache_handler,
 )
-from app.bot.handlers.timezone import get_handler as get_timezone_handler
+from app.bot.handlers.admin_settings import (
+    get_admin_settings_handler,
+    get_admin_settings_callback_handler,
+    get_chat_member_handler,
+    get_group_message_handler,
+)
 
 
 def register_handlers(application: Application) -> None:
@@ -27,7 +32,9 @@ def register_handlers(application: Application) -> None:
     application.add_handler(get_random_handler())
     application.add_handler(get_random_page_handler())
     application.add_handler(CommandHandler("dailysettings", daily_settings))
-    application.add_handler(get_timezone_handler())
+    application.add_handler(get_admin_settings_handler())
+    application.add_handler(get_chat_member_handler())
+    application.add_handler(get_group_message_handler())
     application.add_handler(get_main_menu_handler())
 
     # Callback handlers are registered unconditionally. Inline keyboards and
@@ -46,3 +53,6 @@ def register_handlers(application: Application) -> None:
             pattern=r"^daily_",
         )
     )
+
+    # Admin settings callbacks are scoped to their own "aset_" prefix.
+    application.add_handler(get_admin_settings_callback_handler())
