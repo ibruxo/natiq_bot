@@ -19,7 +19,12 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "chats",
-        sa.Column("delivery_mode", sa.String(length=32), nullable=False, server_default="random"),
+        sa.Column(
+            "delivery_mode",
+            sa.String(length=32),
+            nullable=False,
+            server_default="random",
+        ),
     )
 
 
