@@ -14,15 +14,7 @@ def random_ayah_keyboard(
 ) -> InlineKeyboardMarkup:
     """
     Keyboard for ayah navigation.
-
-    Callback format:
-
-        next_ayah:{ayah_uuid}
-
-    The callback handler uses this UUID
-    to locate the current ayah.
     """
-
     return InlineKeyboardMarkup(
         [
             [
@@ -32,6 +24,12 @@ def random_ayah_keyboard(
                         language,
                     ),
                     callback_data=f"next_ayah:{ayah_uuid}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⏰ Daily Send Settings",
+                    callback_data="open_dailysettings",
                 ),
             ],
         ]
@@ -45,58 +43,56 @@ def random_page_keyboard(
 ) -> InlineKeyboardMarkup:
     """
     Keyboard for page navigation.
-
-    Callback format:
-
-        next_page:{ayah_uuid}
-        page_translation:{ayah_uuid}
-        page_no_translation:{ayah_uuid}
-
-    The callback handler uses this UUID
-    to locate the current page (first ayah).
     """
-
     if show_translation:
-        # Show "Without Translation" button when currently showing translations
-        return InlineKeyboardMarkup(
+        rows = [
             [
-                [
-                    InlineKeyboardButton(
-                        text=get_message(
-                            "next_page_button",
-                            language,
-                        ),
-                        callback_data=f"next_page:{ayah_uuid}",
+                InlineKeyboardButton(
+                    text=get_message(
+                        "next_page_button",
+                        language,
                     ),
-                    InlineKeyboardButton(
-                        text=get_message(
-                            "page_no_translation_button",
-                            language,
-                        ),
-                        callback_data=f"page_no_translation:{ayah_uuid}",
+                    callback_data=f"next_page:{ayah_uuid}",
+                ),
+                InlineKeyboardButton(
+                    text=get_message(
+                        "page_no_translation_button",
+                        language,
                     ),
-                ],
-            ]
-        )
+                    callback_data=f"page_no_translation:{ayah_uuid}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⏰ Daily Send Settings",
+                    callback_data="open_dailysettings",
+                ),
+            ],
+        ]
     else:
-        # Show "Translation" button when not currently showing translations
-        return InlineKeyboardMarkup(
+        rows = [
             [
-                [
-                    InlineKeyboardButton(
-                        text=get_message(
-                            "next_page_button",
-                            language,
-                        ),
-                        callback_data=f"next_page:{ayah_uuid}",
+                InlineKeyboardButton(
+                    text=get_message(
+                        "next_page_button",
+                        language,
                     ),
-                    InlineKeyboardButton(
-                        text=get_message(
-                            "page_translation_button",
-                            language,
-                        ),
-                        callback_data=f"page_translation:{ayah_uuid}",
+                    callback_data=f"next_page:{ayah_uuid}",
+                ),
+                InlineKeyboardButton(
+                    text=get_message(
+                        "page_translation_button",
+                        language,
                     ),
-                ],
-            ]
-        )
+                    callback_data=f"page_translation:{ayah_uuid}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⏰ Daily Send Settings",
+                    callback_data="open_dailysettings",
+                ),
+            ],
+        ]
+
+    return InlineKeyboardMarkup(rows)

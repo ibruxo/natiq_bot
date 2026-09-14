@@ -56,10 +56,11 @@ class ChatRepository:
                 chat_type=chat_type,
                 language=language,
                 daily_ayah=enable_daily_ayah,
-                daily_time=settings.DAILY_AYAH_DEFAULT_TIME,  # Uses env config (03:15 for Riyadh)
-                timezone=settings.DAILY_AYAH_DEFAULT_TIMEZONE,  # Uses env config (Asia/Riyadh)
-                daily_type="ayah",  # Default to ayah type
+                daily_time=settings.DAILY_AYAH_DEFAULT_TIME,
+                timezone=settings.DAILY_AYAH_DEFAULT_TIMEZONE,
+                daily_type="ayah",
                 content_mode=ContentMode.RANDOM_AYAH.value,
+                delivery_mode="random",
             )
             session.add(chat)
             await session.commit()
@@ -77,6 +78,7 @@ class ChatRepository:
         timezone: str | None = None,
         content_mode: str | None = None,
         daily_type: str | None = None,
+        delivery_mode: str | None = None,
     ) -> "Chat | None":
         async with self._database.session() as session:
             chat = await self._get_by_telegram_id(session, telegram_id)
@@ -95,6 +97,8 @@ class ChatRepository:
                 chat.content_mode = content_mode
             if daily_type is not None:
                 chat.daily_type = daily_type
+            if delivery_mode is not None:
+                chat.delivery_mode = delivery_mode
 
             await session.commit()
             await session.refresh(chat)

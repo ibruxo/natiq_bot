@@ -29,7 +29,7 @@ def format_page(
     *,
     show_translation: bool = False,
 ) -> str:
-    """Format a page (group of ayahs), optionally including translations."""
+    """Format a page (group of ayahs), optionally including translations (no divider lines)."""
     settings = get_settings()
     parts: list[str] = []
 
@@ -47,22 +47,13 @@ def format_page(
         else:
             parts.append("")
 
-    # Format each ayah in the page with better spacing
+    # Format each ayah in the page without separator lines
     for i, ayah in enumerate(ayahs):
-        if show_translation and i > 0:
-            parts.append("─" * 10)
-
         parts.append(f"📖 {ayah.text} ﴿{ayah.ayah_number}﴾")
 
         if show_translation:
             if ayah.translation:
                 parts.append(f"📝 {ayah.translation}")
-        else:
-            parts.append("──────────")
-
-    # Remove the last separator
-    if not show_translation and parts:
-        parts.pop()
 
     # Attribution
     parts.append("")
@@ -123,7 +114,6 @@ async def random_page(
                 update.effective_user.id
             )
             if chat:
-                # Log the first ayah as representative of the page
                 await container.sent_history_repository.log_sent(
                     chat_uuid=chat.uuid,
                     ayah_uuid=page_ayahs[0].uuid,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import logging
 
 import httpx
@@ -13,16 +14,6 @@ logger = logging.getLogger(__name__)
 class QuranCacheLoader:
     """
     Loads all Quran resources into memory.
-
-    Startup order:
-
-        1. Ayahs
-        2. Takhtits
-        3. Translations
-        4. Surahs
-
-    After this finishes, every lookup performed by the provider
-    is O(1) through the cache lookup tables.
     """
 
     def __init__(
@@ -33,6 +24,7 @@ class QuranCacheLoader:
         self._provider = provider
         self._cache = cache
         self.loading = False
+        self.cache_loaded_at: datetime | None = None
 
     async def load(self) -> bool:
         logger.info("Loading Quran cache...")
@@ -50,6 +42,7 @@ class QuranCacheLoader:
 
         logger.info("Quran cache loaded successfully.")
         self.loading = False
+        self.cache_loaded_at = datetime.now(timezone.utc)
         return True
 
     async def _load_ayahs(self) -> None:

@@ -169,6 +169,8 @@ async def _render_daily_settings(
     current_tz = chat.timezone or get_settings().DAILY_AYAH_DEFAULT_TIMEZONE
     current_time = chat.daily_time or get_settings().DAILY_AYAH_DEFAULT_TIME
     current_type = chat.daily_type or "ayah"
+    delivery_mode = chat.delivery_mode or "random"
+    delivery_mode_str = "🔀 Random" if delivery_mode == "random" else "🔢 Sequential (Order)"
     status_str = "🟢 Enabled" if chat.daily_ayah else "🔴 Disabled"
     settings = get_settings()
 
@@ -177,7 +179,7 @@ async def _render_daily_settings(
         time=current_time,
         type=current_type,
     )
-    message = f"📊 *Daily Ayah Status*: {status_str}\n\n{message}\n\n📱 {settings.BOT_USERNAME}"
+    message = f"📊 *Daily Ayah Status*: {status_str}\n🎯 *Delivery Mode*: `{delivery_mode_str}`\n\n{message}\n\n📱 {settings.BOT_USERNAME}"
 
     toggle_status_text = (
         "Disable Daily Ayah" if chat.daily_ayah else "Enable Daily Ayah"
@@ -190,6 +192,12 @@ async def _render_daily_settings(
             InlineKeyboardButton(
                 f"{toggle_status_icon} {toggle_status_text}",
                 callback_data="daily_toggle_status",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                f"Mode: {delivery_mode_str}",
+                callback_data="daily_delivery_mode",
             ),
         ],
         [
@@ -326,6 +334,14 @@ async def daily_settings_callback(
         # Handle different callback actions
         if callback_data == "daily_tz_continent":
             await show_timezone_continents(update, language)
+        elif callback_data == "daily_toggle_status":
+            new_status = not chat.daily_ayah
+            chat = await chat_repo.update_preferences(
+                telegram_id=telegram_id, daily_ayah=new_status
+            )
+            if chat:
+                schedule_user_daily_ayah(context.application, chat)
+            await _render_daily_settings(update, context, language)
         elif callback_data == "daily_time_hour":
             await show_time_hour_selection(update, language)
         elif callback_data == "daily_type":
@@ -349,13 +365,12 @@ async def daily_settings_callback(
         elif callback_data.startswith("daily_time_set_"):
             time = callback_data.replace("daily_time_set_", "")
             await set_time(update, context, chat_repo, telegram_id, time, language)
-        elif callback_data == "daily_toggle_status":
-            new_status = not chat.daily_ayah
+        elif callback_data == "daily_delivery_mode":
+            current_mode = chat.delivery_mode or "random"
+            new_mode = "sequential" if current_mode == "random" else "random"
             chat = await chat_repo.update_preferences(
-                telegram_id=telegram_id, daily_ayah=new_status
+                telegram_id=telegram_id, delivery_mode=new_mode
             )
-            if chat:
-                schedule_user_daily_ayah(context.application, chat)
             await _render_daily_settings(update, context, language)
         elif callback_data == "daily_admin_settings":
             from app.bot.handlers.admin_settings import admin_settings_command
