@@ -220,20 +220,42 @@ async def reload_quran_cache(
         return
 
     settings = get_settings()
-    await update.message.reply_text(
-        f"{get_message('admin_cache_reloading', language)}{_get_footer(settings.BOT_USERNAME)}"
+    status_msg = await update.message.reply_text(
+        "🔄 Reloading Quran cache... please wait.\n\n"
+        "• Ayahs: ⏳ Pending\n"
+        "• Takhtits: ⏳ Pending\n"
+        "• Translations: ⏳ Pending\n"
+        "• Surahs: ⏳ Pending"
     )
 
-    reloaded = await container.reload_quran_cache()
+    success, details = await container.loader.load_detailed()
 
-    if reloaded:
-        await update.message.reply_text(
-            f"{get_message('admin_cache_reload_success', language)}{_get_footer(settings.BOT_USERNAME)}",
+    def _format_status(st: str) -> str:
+        if st == "success":
+            return "✅ Success"
+        if st.startswith("failed"):
+            return f"❌ {st}"
+        return f"⏳ {st}"
+
+    report = (
+        f"{'✅ Quran cache reloaded successfully!' if success else '❌ Quran cache reload failed.'}\n\n"
+        f"📊 *Cache Reload Report*:\n"
+        f"• Ayahs: {_format_status(details.get('ayahs', 'unknown'))}\n"
+        f"• Takhtits: {_format_status(details.get('takhtits', 'unknown'))}\n"
+        f"• Translations: {_format_status(details.get('translations', 'unknown'))}\n"
+        f"• Surahs: {_format_status(details.get('surahs', 'unknown'))}"
+    )
+
+    try:
+        await status_msg.edit_text(
+            f"{report}{_get_footer(settings.BOT_USERNAME)}",
+            parse_mode="Markdown",
             reply_markup=main_menu_keyboard(language),
         )
-    else:
+    except Exception:
         await update.message.reply_text(
-            f"{get_message('admin_cache_reload_failed', language)}{_get_footer(settings.BOT_USERNAME)}",
+            f"{report}{_get_footer(settings.BOT_USERNAME)}",
+            parse_mode="Markdown",
             reply_markup=main_menu_keyboard(language),
         )
 

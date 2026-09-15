@@ -311,25 +311,22 @@ async def admin_settings_command(
         await _render_chat_settings(update, context, chat.id, language)
         return
 
-    # Private chat: list user's private settings or managed groups
+    # Private/direct chat: list user's managed groups/channels
     managed_chats = await chat_repo.list_chats_administered_by(user_id)
     all_chats = await chat_repo.list_group_chats()
-    admin_chats = list(managed_chats)
-    seen_chat_ids = {c.chat_id for c in admin_chats}
+    raw_admin_chats = list(managed_chats)
+    seen_chat_ids = {c.chat_id for c in raw_admin_chats}
 
     for c in all_chats:
         if c.chat_id not in seen_chat_ids:
             if await _is_chat_admin(update, context, c.chat_id):
-                admin_chats.append(c)
+                raw_admin_chats.append(c)
                 seen_chat_ids.add(c.chat_id)
 
-    if not admin_chats:
-        # Also include private chat itself if configured
-        private_chat = await chat_repo.get_by_telegram_id(user_id)
-        if private_chat:
-            await _render_chat_settings(update, context, user_id, language)
-            return
+    # Filter to only groups, supergroups, and channels (exclude private chats)
+    admin_chats = [c for c in raw_admin_chats if c.chat_type in ("group", "supergroup", "channel")]
 
+    if not admin_chats:
         await _reply_or_edit(
             update,
             "ℹ️ You do not have any managed groups or channels where this bot is added.\n\n"
@@ -337,7 +334,7 @@ async def admin_settings_command(
         )
         return
 
-    if len(admin_chats) == 1 and not is_superadmin:
+    if len(admin_chats) == 1:
         await _render_chat_settings(update, context, admin_chats[0].chat_id, language)
         return
 
@@ -363,7 +360,7 @@ async def admin_settings_command(
 
     await _reply_or_edit(
         update,
-        "⚙️ *Admin Settings*\n\nSelect a chat, group, or channel you manage to configure:",
+        "⚙️ *Admin Settings*\n\nSelect a group or channel you manage to configure:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown",
     )
