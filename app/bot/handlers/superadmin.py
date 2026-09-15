@@ -81,7 +81,6 @@ async def _get_system_stats(context: ContextTypes.DEFAULT_TYPE) -> str:
     ram = psutil.virtual_memory()
     disk = shutil.disk_usage("/")
 
-    # Server uptime calculation
     uptime_seconds = int(time.time() - PROCESS_START_TIME)
     hours = uptime_seconds // 3600
     minutes = (uptime_seconds % 3600) // 60
@@ -104,7 +103,7 @@ async def _get_system_stats(context: ContextTypes.DEFAULT_TYPE) -> str:
     )
 
 
-def _build_admin_dashboard(
+async def _build_admin_dashboard(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     language: str,
@@ -114,13 +113,25 @@ def _build_admin_dashboard(
     settings = get_settings()
     container = context.application.bot_data.get("container")
 
-    # Clickable admin list: username + chat_id in parentheses
     admin_links = []
     for admin_id in sorted(settings.admin_user_ids):
-        admin_links.append(f"[Admin {admin_id}](tg://user?id={admin_id}) ({admin_id})")
+        display_name = f"Admin {admin_id}"
+        try:
+            chat_obj = await context.bot.get_chat(admin_id)
+            if chat_obj.username:
+                display_name = f"@{chat_obj.username}"
+            elif chat_obj.first_name:
+                name_parts = [chat_obj.first_name]
+                if chat_obj.last_name:
+                    name_parts.append(chat_obj.last_name)
+                display_name = " ".join(name_parts)
+        except Exception:
+            pass
+
+        admin_links.append(f"[{display_name}](tg://user?id={admin_id}) ({admin_id})")
+
     admin_list_str = ", ".join(admin_links) if admin_links else "None"
 
-    # Cache load time / uptime
     cache_status_text = "Not Loaded"
     if container and container.loader:
         if container.loader.loading:
@@ -294,7 +305,7 @@ async def admin_settings_entry(
         stats = await _get_system_stats(context)
         totals = await container.sent_history_repository.get_total_sent_counts()
 
-        dashboard = _build_admin_dashboard(
+        dashboard = await _build_admin_dashboard(
             update,
             context,
             language,
