@@ -4,6 +4,8 @@ import logging
 import uuid
 from typing import TYPE_CHECKING
 
+from sqlalchemy import func, select
+
 if TYPE_CHECKING:
     from app.database.models.sent_history import SentHistory
     from app.database.session import Database
@@ -35,3 +37,19 @@ class SentHistoryRepository:
             await session.commit()
             await session.refresh(history)
             return history
+
+    async def get_total_sent_counts(self) -> dict[str, int]:
+        from app.database.models.sent_history import ReadingMode, SentHistory
+
+        async with self._database.session() as session:
+            ayah_stmt = select(func.count(SentHistory.uuid)).where(
+                SentHistory.type == ReadingMode.AYAH
+            )
+            page_stmt = select(func.count(SentHistory.uuid)).where(
+                SentHistory.type == ReadingMode.PAGE
+            )
+
+            ayahs_count = await session.scalar(ayah_stmt) or 0
+            pages_count = await session.scalar(page_stmt) or 0
+
+            return {"ayahs": ayahs_count, "pages": pages_count}

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import shutil
+import time
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Protocol
 
 import psutil
@@ -18,6 +20,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+PROCESS_START_TIME = time.time()
+
 
 class SupportsAdminLookup(Protocol):
     async def get_by_telegram_id(self, telegram_id: int) -> "Chat | None": ...
@@ -29,15 +33,6 @@ async def _resolve_is_superadmin(
     configured_admin_ids: set[int],
     chat_repository: SupportsAdminLookup,
 ) -> bool:
-    """
-    A user is an admin if either is true:
-
-    - their numeric ID is listed in the `ADMIN_USER_IDS` setting, or
-    - their `chats.is_admin` database column is set to true.
-
-    The env-based check is tried first since it never requires a
-    database round-trip.
-    """
     if telegram_id in configured_admin_ids:
         return True
 
@@ -46,7 +41,6 @@ async def _resolve_is_superadmin(
         if chat is None:
             return False
 
-        # Check if is_admin attribute exists (for database compatibility)
         if hasattr(chat, "is_admin"):
             return chat.is_admin
 
@@ -87,6 +81,12 @@ async def _get_system_stats(context: ContextTypes.DEFAULT_TYPE) -> str:
     ram = psutil.virtual_memory()
     disk = shutil.disk_usage("/")
 
+    uptime_seconds = int(time.time() - PROCESS_START_TIME)
+    hours = uptime_seconds // 3600
+    minutes = (uptime_seconds % 3600) // 60
+    seconds = uptime_seconds % 60
+    uptime_str = f"{hours}h {minutes}m {seconds}s"
+
     container = context.application.bot_data.get("container")
     if container:
         user_counts = await container.chat_repository.count_by_type()
@@ -98,11 +98,12 @@ async def _get_system_stats(context: ContextTypes.DEFAULT_TYPE) -> str:
         f"🖥 CPU: {cpu_usage}%\n"
         f"💾 RAM: {ram.percent}% ({ram.used // 1024**2}MB / {ram.total // 1024**2}MB)\n"
         f"💽 Disk: {(disk.used / disk.total) * 100:.1f}% ({disk.used // 1024**3}GB / {disk.total // 1024**3}GB)\n"
+        f"⏱ Server Uptime: {uptime_str}\n"
         f"👥 Total Users: {total_users}"
     )
 
 
-def _build_admin_dashboard(
+async def _build_admin_dashboard(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     language: str,
@@ -112,14 +113,43 @@ def _build_admin_dashboard(
     settings = get_settings()
     container = context.application.bot_data.get("container")
 
-    # Admin list (env)
-    admin_list = ", ".join(map(str, sorted(settings.admin_user_ids)))
+    admin_links = []
+    for admin_id in sorted(settings.admin_user_ids):
+        display_label = f"Admin {admin_id}"
+        try:
+            chat_obj = await context.bot.get_chat(admin_id)
+            if chat_obj.username:
+                display_label = f"@{chat_obj.username}"
+            elif chat_obj.first_name:
+                name_parts = [chat_obj.first_name]
+                if chat_obj.last_name:
+                    name_parts.append(chat_obj.last_name)
+                display_label = " ".join(name_parts)
+        except Exception:
+            pass
 
-    # Categorized Admin Dashboard
+        admin_links.append(f"{display_label} (chat id: {admin_id})")
+
+    admin_list_str = ", ".join(admin_links) if admin_links else "None"
+
+    cache_status_text = "Not Loaded"
+    if container and container.loader:
+        if container.loader.loading:
+            cache_status_text = "🔄 Loading..."
+        elif container.quran_cache_ready and container.loader.cache_loaded_at:
+            loaded_at = container.loader.cache_loaded_at
+            now = datetime.now(timezone.utc)
+            delta = int((now - loaded_at).total_seconds())
+            c_hours = delta // 3600
+            c_mins = (delta % 3600) // 60
+            cache_status_text = f"✅ Loaded at {loaded_at.strftime('%Y-%m-%d %H:%M:%S UTC')} (Uptime: {c_hours}h {c_mins}m)"
+        elif container.quran_cache_ready:
+            cache_status_text = "✅ Ready"
+
     env_info = (
         f"🌐 Platform: {settings.PLATFORM}\n"
         f"🌍 Language: {settings.BOT_LANGUAGE}\n"
-        f"🔐 Admins: {admin_list}\n"
+        f"🔐 Admins: {admin_list_str}\n"
         f"🔑 API Key (Set: {'✅' if settings.BOT_TOKEN else '❌'})\n"
         f"⏱ API Timeout: {settings.NATIQ_API_TIMEOUT}s"
     )
@@ -130,23 +160,19 @@ def _build_admin_dashboard(
         f"🔑 API Key: {'✅ Provided' if settings.BOT_TOKEN else '❌ Missing'}"
     )
 
-    # Helper to get cache icon
-    def _get_cache_icon() -> str:
-        if container and container.loader.loading:
-            return "🔄"
-        return "✅" if container and container.quran_cache_ready else "❌"
-
-    return get_message("admin_dashboard", language).format(
+    dashboard = get_message("admin_dashboard", language).format(
         stats=stats,
         env_info=env_info,
         bot_api_info=bot_api_info,
         total_ayahs=totals["ayahs"],
         total_pages=totals["pages"],
-        quran_cache_ready=_get_cache_icon(),
+        quran_cache_ready=cache_status_text,
         bot_id=context.bot.id,
         bot_language=settings.BOT_LANGUAGE,
         api_status="✅",
     )
+
+    return dashboard
 
 
 def _get_footer(username: str) -> str:
@@ -184,13 +210,6 @@ async def reload_quran_cache(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    """
-    Admin-only command to reload the in-memory Quran cache without
-    restarting the bot process.
-
-    Rate-limited more strictly than other admin actions because it
-    triggers a full re-fetch of the Quran dataset from the Natiq API.
-    """
     if not update.message:
         return
 
@@ -212,27 +231,50 @@ async def reload_quran_cache(
         return
 
     settings = get_settings()
-    await update.message.reply_text(
-        f"{get_message('admin_cache_reloading', language)}{_get_footer(settings.BOT_USERNAME)}"
+    status_msg = await update.message.reply_text(
+        "🔄 Reloading Quran cache... please wait.\n\n"
+        "• Ayahs: ⏳ Pending\n"
+        "• Takhtits: ⏳ Pending\n"
+        "• Translations: ⏳ Pending\n"
+        "• Surahs: ⏳ Pending"
     )
 
-    reloaded = await container.reload_quran_cache()
+    success, details = await container.loader.load_detailed()
 
-    result_key = (
-        "admin_cache_reload_success" if reloaded else "admin_cache_reload_failed"
-    )
-    settings = get_settings()
+    def _format_status(st: str) -> str:
+        if st == "success":
+            return "✅ Success"
+        if st.startswith("failed"):
+            return f"❌ {st}"
+        return f"⏳ {st}"
 
-    await update.message.reply_text(
-        f"{get_message(result_key, language)}{_get_footer(settings.BOT_USERNAME)}",
-        reply_markup=main_menu_keyboard(language),
+    report = (
+        f"{'✅ Quran cache reloaded successfully!' if success else '❌ Quran cache reload failed.'}\n\n"
+        f"📊 *Cache Reload Report*:\n"
+        f"• Ayahs: {_format_status(details.get('ayahs', 'unknown'))}\n"
+        f"• Takhtits: {_format_status(details.get('takhtits', 'unknown'))}\n"
+        f"• Translations: {_format_status(details.get('translations', 'unknown'))}\n"
+        f"• Surahs: {_format_status(details.get('surahs', 'unknown'))}"
     )
+
+    try:
+        await status_msg.edit_text(
+            f"{report}{_get_footer(settings.BOT_USERNAME)}",
+            parse_mode="Markdown",
+            reply_markup=main_menu_keyboard(language),
+        )
+    except Exception:
+        await update.message.reply_text(
+            f"{report}{_get_footer(settings.BOT_USERNAME)}",
+            parse_mode="Markdown",
+            reply_markup=main_menu_keyboard(language),
+        )
 
 
 @rate_limit(
     RateLimitRule(
-        limit=5,
-        window_seconds=15,
+        limit=3,
+        window_seconds=10,
     )
 )
 async def admin_settings_entry(
@@ -259,18 +301,31 @@ async def admin_settings_entry(
         )
         return
 
-    stats = await _get_system_stats(context)
-    totals = await container.chat_repository.get_send_totals()
-    settings = get_settings()
+    try:
+        stats = await _get_system_stats(context)
+        totals = await container.sent_history_repository.get_total_sent_counts()
 
-    await update.message.reply_text(
-        f"{_build_admin_dashboard(update, context, language, stats, totals)}{_get_footer(settings.BOT_USERNAME)}",
-        reply_markup=main_menu_keyboard(language),
-    )
+        dashboard = await _build_admin_dashboard(
+            update,
+            context,
+            language,
+            stats,
+            totals,
+        )
+        settings = get_settings()
 
-
-def get_command_handler() -> CommandHandler:
-    return CommandHandler("superadmin", admin_settings_entry)
+        await update.message.reply_text(
+            f"{dashboard}{_get_footer(settings.BOT_USERNAME)}",
+            parse_mode="Markdown",
+            reply_markup=main_menu_keyboard(language),
+        )
+    except Exception as exc:
+        logger.exception("Admin settings entry failed: %s", exc)
+        settings = get_settings()
+        await update.message.reply_text(
+            f"❌ Failed to load admin dashboard.\n\n📱 {settings.BOT_USERNAME}",
+            reply_markup=main_menu_keyboard(language),
+        )
 
 
 def get_reload_cache_handler() -> CommandHandler:

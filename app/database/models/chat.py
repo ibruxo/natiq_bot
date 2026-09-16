@@ -23,6 +23,9 @@ class Chat(Base, UUIDMixin, TimestampMixin):
     # Preferences
     language: Mapped[str] = mapped_column(String(10), default="fa")
     content_mode: Mapped[str] = mapped_column(String(32), default="random_ayah")
+    delivery_mode: Mapped[str] = mapped_column(
+        String(32), default="random"
+    )  # "random" or "sequential"
 
     # Daily ayah settings
     # daily_time is user's preferred local time (e.g., "03:15" for 3:15 AM)

@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import CallbackQueryHandler, ContextTypes
 
 from app.api.checker import MessengerFeature
+from app.bot.handlers.daily_settings import daily_settings
 from app.bot.handlers.random import format_ayah
 from app.bot.handlers.random_page import format_page, generate_random_page
 from app.core.container import Container
@@ -20,6 +21,7 @@ async def _reply_with_ayah(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     ayah: Ayah,
+    edit: bool = False,
 ) -> None:
     query = update.callback_query
 
@@ -34,8 +36,6 @@ async def _reply_with_ayah(
     context.user_data["current_ayah_uuid"] = ayah.uuid
 
     reply_markup = None
-
-    # Build and pass language to keyboard builder
     language = detect_language(
         update.effective_user.language_code if update.effective_user else None
     )
@@ -45,7 +45,16 @@ async def _reply_with_ayah(
     ):
         reply_markup = random_ayah_keyboard(ayah.uuid, language)
 
-    # Send as new message
+    if edit:
+        try:
+            await message.edit_text(
+                text=format_ayah(ayah),
+                reply_markup=reply_markup,
+            )
+            return
+        except Exception:
+            pass
+
     await message.reply_text(
         text=format_ayah(ayah),
         reply_markup=reply_markup,
@@ -56,6 +65,7 @@ async def _reply_with_page(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     ayahs: list[Ayah],
+    edit: bool = False,
 ) -> None:
     query = update.callback_query
 
@@ -68,13 +78,9 @@ async def _reply_with_page(
         return
 
     reply_markup = None
-
-    # Build and pass language to keyboard builder
     language = detect_language(
         update.effective_user.language_code if update.effective_user else None
     )
-
-    # Check translation state
     show_translation = context.user_data.get("show_translation", False)
 
     if (
@@ -85,9 +91,63 @@ async def _reply_with_page(
     ):
         reply_markup = random_page_keyboard(ayahs[0].uuid, language, show_translation)
 
-    # Send as new message
+    if edit:
+        try:
+            await message.edit_text(
+                text=format_page(ayahs, show_translation=show_translation),
+                reply_markup=reply_markup,
+            )
+            return
+        except Exception:
+            pass
+
     await message.reply_text(
-        text=format_page(ayahs),
+        text=format_page(ayahs, show_translation=show_translation),
+        reply_markup=reply_markup,
+    )
+
+
+async def _reply_with_page_translation(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    ayahs: list[Ayah],
+    edit: bool = True,
+) -> None:
+    query = update.callback_query
+
+    if query is None:
+        return
+
+    message = query.message
+
+    if message is None:
+        return
+
+    reply_markup = None
+    language = detect_language(
+        update.effective_user.language_code if update.effective_user else None
+    )
+
+    if (
+        context.application.bot_data["feature_checker"].supports(
+            MessengerFeature.INLINE_KEYBOARD
+        )
+        and ayahs
+    ):
+        reply_markup = random_page_keyboard(ayahs[0].uuid, language, True)
+
+    if edit:
+        try:
+            await message.edit_text(
+                text=format_page(ayahs, show_translation=True),
+                reply_markup=reply_markup,
+            )
+            return
+        except Exception:
+            pass
+
+    await message.reply_text(
+        text=format_page(ayahs, show_translation=True),
         reply_markup=reply_markup,
     )
 
@@ -105,7 +165,6 @@ async def _handle_next_ayah(
 
     try:
         container: Container = context.application.bot_data["container"]
-        # current_uuid is now extracted directly from query data to ensure uniqueness
 
         if not container.quran_cache_ready:
             await query.answer(
@@ -114,26 +173,33 @@ async def _handle_next_ayah(
             )
             return
 
-        ayah: Ayah = await container.provider.next_ayah(
-            current_uuid=query.data.split(":")[1],
-        )
-
-        # Track in database
+        chat = None
         if update.effective_user:
             chat = await container.chat_repository.get_by_telegram_id(
                 update.effective_user.id
             )
-            if chat:
-                await container.sent_history_repository.log_sent(
-                    chat_uuid=chat.uuid,
-                    ayah_uuid=ayah.uuid,
-                    reading_mode="ayah",
-                )
+
+        delivery_mode = chat.delivery_mode if chat else "random"
+
+        if delivery_mode == "sequential":
+            ayah: Ayah = await container.provider.next_ayah(
+                current_uuid=query.data.split(":")[1],
+            )
+        else:
+            ayah: Ayah = await container.provider.random_ayah()
+
+        if chat and ayah:
+            await container.sent_history_repository.log_sent(
+                chat_uuid=chat.uuid,
+                ayah_uuid=ayah.uuid,
+                reading_mode="ayah",
+            )
 
         await _reply_with_ayah(
             update,
             context,
             ayah,
+            edit=False,
         )
 
     except Exception:
@@ -165,24 +231,35 @@ async def random_ayah_callback(
             )
             return
 
-        ayah: Ayah = await container.provider.random_ayah()
-
-        # Track in database
+        chat = None
         if update.effective_user:
             chat = await container.chat_repository.get_by_telegram_id(
                 update.effective_user.id
             )
-            if chat:
-                await container.sent_history_repository.log_sent(
-                    chat_uuid=chat.uuid,
-                    ayah_uuid=ayah.uuid,
-                    reading_mode="ayah",
-                )
+
+        delivery_mode = chat.delivery_mode if chat else "random"
+
+        if delivery_mode == "sequential":
+            current_uuid = context.user_data.get("current_ayah_uuid")
+            if current_uuid:
+                ayah = await container.provider.next_ayah(current_uuid=current_uuid)
+            else:
+                ayah = await container.provider.random_ayah()
+        else:
+            ayah: Ayah = await container.provider.random_ayah()
+
+        if chat and ayah:
+            await container.sent_history_repository.log_sent(
+                chat_uuid=chat.uuid,
+                ayah_uuid=ayah.uuid,
+                reading_mode="ayah",
+            )
 
         await _reply_with_ayah(
             update,
             context,
             ayah,
+            edit=False,
         )
 
     except Exception:
@@ -214,9 +291,14 @@ async def _handle_next_page(
             )
             return
 
-        # Determine the current page from the uuid in the callback data.
-        # user_data["current_page"] is only set for pages generated interactively,
-        # so it cannot be relied on here (e.g. daily-sent pages never set it).
+        chat = None
+        if update.effective_user:
+            chat = await container.chat_repository.get_by_telegram_id(
+                update.effective_user.id
+            )
+
+        delivery_mode = chat.delivery_mode if chat else "random"
+
         current_ayahs = await container.provider.get_ayahs_by_first_ayah_uuid(
             query.data.split(":")[1]
         )
@@ -225,33 +307,25 @@ async def _handle_next_page(
             if current_ayahs and current_ayahs[0].page is not None
             else (context.user_data.get("current_page") or 1)
         )
-        next_page = current_page + 1
 
-        # Get ayahs for the next page
-        page_ayahs = await container.provider.get_ayahs_by_page(next_page)
-
-        # If no ayahs found for this page, fall back to a random page
-        if not page_ayahs:
-            page_ayahs = await generate_random_page(container)
-            if page_ayahs:
-                context.user_data["current_page"] = page_ayahs[0].page
+        if delivery_mode == "sequential":
+            next_page = current_page + 1
+            page_ayahs = await container.provider.get_ayahs_by_page(next_page)
+            if not page_ayahs:
+                page_ayahs = await generate_random_page(container)
         else:
-            # Update current page in user data
-            context.user_data["current_page"] = next_page
+            page_ayahs = await generate_random_page(container)
 
-        # Track in database
-        if update.effective_user and page_ayahs:
-            chat = await container.chat_repository.get_by_telegram_id(
-                update.effective_user.id
+        if page_ayahs:
+            context.user_data["current_page"] = page_ayahs[0].page
+
+        if chat and page_ayahs:
+            await container.sent_history_repository.log_sent(
+                chat_uuid=chat.uuid,
+                ayah_uuid=page_ayahs[0].uuid,
+                reading_mode="page",
             )
-            if chat:
-                await container.sent_history_repository.log_sent(
-                    chat_uuid=chat.uuid,
-                    ayah_uuid=page_ayahs[0].uuid,
-                    reading_mode="page",
-                )
 
-        # Check if user previously chose to see translations
         show_translation = context.user_data.get("show_translation", False)
 
         if show_translation:
@@ -259,12 +333,14 @@ async def _handle_next_page(
                 update,
                 context,
                 page_ayahs,
+                edit=False,
             )
         else:
             await _reply_with_page(
                 update,
                 context,
                 page_ayahs,
+                edit=False,
             )
 
     except Exception:
@@ -296,11 +372,8 @@ async def _handle_page_translation(
             )
             return
 
-        # Set translation state for this user
         context.user_data["show_translation"] = True
 
-        # Re-render the SAME page currently on screen with translations,
-        # instead of generating a brand-new random page.
         first_ayah_uuid = query.data.split(":")[1]
         page_ayahs = await container.provider.get_ayahs_by_first_ayah_uuid(
             first_ayah_uuid
@@ -312,7 +385,6 @@ async def _handle_page_translation(
         if page_ayahs:
             context.user_data["current_page"] = page_ayahs[0].page
 
-        # Track in database
         if update.effective_user and page_ayahs:
             chat = await container.chat_repository.get_by_telegram_id(
                 update.effective_user.id
@@ -328,6 +400,7 @@ async def _handle_page_translation(
             update,
             context,
             page_ayahs,
+            edit=True,
         )
 
     except Exception:
@@ -359,11 +432,8 @@ async def _handle_page_no_translation(
             )
             return
 
-        # Reset translation state for this user
         context.user_data["show_translation"] = False
 
-        # Re-render the SAME page currently on screen without translations,
-        # instead of generating a brand-new random page.
         first_ayah_uuid = query.data.split(":")[1]
         page_ayahs = await container.provider.get_ayahs_by_first_ayah_uuid(
             first_ayah_uuid
@@ -375,7 +445,6 @@ async def _handle_page_no_translation(
         if page_ayahs:
             context.user_data["current_page"] = page_ayahs[0].page
 
-        # Track in database
         if update.effective_user and page_ayahs:
             chat = await container.chat_repository.get_by_telegram_id(
                 update.effective_user.id
@@ -391,6 +460,7 @@ async def _handle_page_no_translation(
             update,
             context,
             page_ayahs,
+            edit=True,
         )
 
     except Exception:
@@ -401,41 +471,15 @@ async def _handle_page_no_translation(
         )
 
 
-async def _reply_with_page_translation(
+async def _handle_open_dailysettings(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
-    ayahs: list[Ayah],
 ) -> None:
     query = update.callback_query
-
     if query is None:
         return
-
-    message = query.message
-
-    if message is None:
-        return
-
-    reply_markup = None
-
-    # Build and pass language to keyboard builder
-    language = detect_language(
-        update.effective_user.language_code if update.effective_user else None
-    )
-
-    if (
-        context.application.bot_data["feature_checker"].supports(
-            MessengerFeature.INLINE_KEYBOARD
-        )
-        and ayahs
-    ):
-        reply_markup = random_page_keyboard(ayahs[0].uuid, language, True)
-
-    # Send as new message
-    await message.reply_text(
-        text=format_page(ayahs, show_translation=True),
-        reply_markup=reply_markup,
-    )
+    await query.answer()
+    await daily_settings(update, context)
 
 
 def get_callback_handlers() -> list[CallbackQueryHandler]:
@@ -459,5 +503,9 @@ def get_callback_handlers() -> list[CallbackQueryHandler]:
         CallbackQueryHandler(
             _handle_page_no_translation,
             pattern=r"^page_no_translation:",
+        ),
+        CallbackQueryHandler(
+            _handle_open_dailysettings,
+            pattern=r"^open_dailysettings$",
         ),
     ]

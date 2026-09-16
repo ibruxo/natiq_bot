@@ -117,6 +117,7 @@ async def send_daily_ayah_job(context: ContextTypes.DEFAULT_TYPE) -> None:
                     content[0].uuid,
                     language,
                     False,
+                    include_settings=True,
                 )
         else:
             # Get random ayah
@@ -132,7 +133,9 @@ async def send_daily_ayah_job(context: ContextTypes.DEFAULT_TYPE) -> None:
             if context.application.bot_data["feature_checker"].supports(
                 MessengerFeature.INLINE_KEYBOARD
             ):
-                reply_markup = random_ayah_keyboard(ayah.uuid, language)
+                reply_markup = random_ayah_keyboard(
+                    ayah.uuid, language, include_settings=True
+                )
 
         # Send to user
         await context.bot.send_message(
