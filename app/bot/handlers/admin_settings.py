@@ -324,7 +324,9 @@ async def admin_settings_command(
                 seen_chat_ids.add(c.chat_id)
 
     # Filter to only groups, supergroups, and channels (exclude private chats)
-    admin_chats = [c for c in raw_admin_chats if c.chat_type in ("group", "supergroup", "channel")]
+    admin_chats = [
+        c for c in raw_admin_chats if c.chat_type in ("group", "supergroup", "channel")
+    ]
 
     if not admin_chats:
         await _reply_or_edit(

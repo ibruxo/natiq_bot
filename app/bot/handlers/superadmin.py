@@ -115,20 +115,20 @@ async def _build_admin_dashboard(
 
     admin_links = []
     for admin_id in sorted(settings.admin_user_ids):
-        display_name = f"Admin {admin_id}"
+        display_label = f"Admin {admin_id}"
         try:
             chat_obj = await context.bot.get_chat(admin_id)
             if chat_obj.username:
-                display_name = f"@{chat_obj.username}"
+                display_label = f"@{chat_obj.username}"
             elif chat_obj.first_name:
                 name_parts = [chat_obj.first_name]
                 if chat_obj.last_name:
                     name_parts.append(chat_obj.last_name)
-                display_name = " ".join(name_parts)
+                display_label = " ".join(name_parts)
         except Exception:
             pass
 
-        admin_links.append(f"[{display_name}](tg://user?id={admin_id}) ({admin_id})")
+        admin_links.append(f"{display_label} (chat id: {admin_id})")
 
     admin_list_str = ", ".join(admin_links) if admin_links else "None"
 
