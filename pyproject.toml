@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 authors = [{name = "Bruxo", email = "braxbot+github@protonmail.com"}]
 
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "GPLv3"}
 keywords = ["telegram", "bot", "quran", "natiq", "islamic"]
 classifiers = [
     "Development Status :: 3 - Alpha",
