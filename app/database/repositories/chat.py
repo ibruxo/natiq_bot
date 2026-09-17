@@ -37,9 +37,6 @@ class ChatRepository:
         chat_type: str = ChatType.PRIVATE.value,
         language: str = "fa",
         enable_daily_ayah: bool = True,
-        username: str | None = None,
-        first_name: str | None = None,
-        last_name: str | None = None,
     ) -> "Chat":
         from app.database.models.chat import Chat
 
@@ -50,12 +47,6 @@ class ChatRepository:
 
             if chat is not None:
                 chat.language = language or chat.language
-                if username is not None:
-                    chat.username = username
-                if first_name is not None:
-                    chat.first_name = first_name
-                if last_name is not None:
-                    chat.last_name = last_name
                 await session.commit()
                 await session.refresh(chat)
                 return chat
@@ -70,9 +61,6 @@ class ChatRepository:
                 daily_type="ayah",
                 content_mode=ContentMode.RANDOM_AYAH.value,
                 delivery_mode="random",
-                username=username,
-                first_name=first_name,
-                last_name=last_name,
             )
             session.add(chat)
             await session.commit()

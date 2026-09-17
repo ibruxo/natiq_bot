@@ -46,14 +46,10 @@ async def start(
             # Get or create user in database
             # The repository will set default timezone (Asia/Riyadh) and time (03:15) from env config
             # Enable daily ayah by default
-            user = update.effective_user
             chat = await user_repo.get_or_create(
                 telegram_id=telegram_id,
                 language=language,
                 enable_daily_ayah=True,
-                username=user.username,
-                first_name=user.first_name,
-                last_name=user.last_name,
             )
 
             if chat is not None:

@@ -117,26 +117,14 @@ async def _build_admin_dashboard(
     for admin_id in sorted(settings.admin_user_ids):
         display_label = f"Admin {admin_id}"
         try:
-            db_admin = None
-            if container and container.chat_repository:
-                db_admin = await container.chat_repository.get_by_telegram_id(admin_id)
-
-            if db_admin and db_admin.username:
-                display_label = f"@{db_admin.username}"
-            elif db_admin and db_admin.first_name:
-                name_parts = [db_admin.first_name]
-                if db_admin.last_name:
-                    name_parts.append(db_admin.last_name)
+            chat_obj = await context.bot.get_chat(admin_id)
+            if chat_obj.username:
+                display_label = f"@{chat_obj.username}"
+            elif chat_obj.first_name:
+                name_parts = [chat_obj.first_name]
+                if chat_obj.last_name:
+                    name_parts.append(chat_obj.last_name)
                 display_label = " ".join(name_parts)
-            else:
-                chat_obj = await context.bot.get_chat(admin_id)
-                if chat_obj.username:
-                    display_label = f"@{chat_obj.username}"
-                elif chat_obj.first_name:
-                    name_parts = [chat_obj.first_name]
-                    if chat_obj.last_name:
-                        name_parts.append(chat_obj.last_name)
-                    display_label = " ".join(name_parts)
         except Exception:
             pass
 

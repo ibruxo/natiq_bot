@@ -18,7 +18,9 @@ depends_on = None
 
 def upgrade() -> None:
     op.add_column("chats", sa.Column("username", sa.String(length=64), nullable=True))
-    op.add_column("chats", sa.Column("first_name", sa.String(length=128), nullable=True))
+    op.add_column(
+        "chats", sa.Column("first_name", sa.String(length=128), nullable=True)
+    )
     op.add_column("chats", sa.Column("last_name", sa.String(length=128), nullable=True))
 
 

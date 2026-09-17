@@ -19,9 +19,6 @@ class Chat(Base, UUIDMixin, TimestampMixin):
     # Telegram identifiers
     chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     chat_type: Mapped[str] = mapped_column(String(32))
-    username: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    first_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    last_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     # Preferences
     language: Mapped[str] = mapped_column(String(10), default="fa")
