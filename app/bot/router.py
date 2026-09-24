@@ -2,26 +2,20 @@ from __future__ import annotations
 
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler
 
-from app.bot.handlers.callbacks import get_callback_handlers
-from app.bot.handlers.daily_settings import (
-    daily_settings_callback,
-    daily_settings,
+from app.bot.handlers.admin_settings import (
+    get_admin_settings_callback_handler,
+    get_admin_settings_handler,
+    get_chat_member_handler,
 )
+from app.bot.handlers.callbacks import get_callback_handlers
+from app.bot.handlers.daily_settings import daily_settings, daily_settings_callback
+from app.bot.handlers.group_registration import get_group_message_handler
 from app.bot.handlers.help import get_handler as get_help_handler
 from app.bot.handlers.menu import get_handler as get_main_menu_handler
 from app.bot.handlers.random import get_handler as get_random_handler
 from app.bot.handlers.random_page import get_handler as get_random_page_handler
 from app.bot.handlers.start import get_handler as get_start_handler
-from app.bot.handlers.superadmin import (
-    admin_settings_entry,
-    get_reload_cache_handler,
-)
-from app.bot.handlers.admin_settings import (
-    get_admin_settings_handler,
-    get_admin_settings_callback_handler,
-    get_chat_member_handler,
-    get_group_message_handler,
-)
+from app.bot.handlers.superadmin import admin_settings_entry, get_reload_cache_handler
 
 
 def register_handlers(application: Application) -> None:
@@ -37,22 +31,10 @@ def register_handlers(application: Application) -> None:
     application.add_handler(get_group_message_handler())
     application.add_handler(get_main_menu_handler())
 
-    # Callback handlers are registered unconditionally. Inline keyboards and
-    # callback queries are core to this bot's UX (random ayah/page navigation
-    # and the daily-settings wizard), so they must never be silently disabled
-    # by a fragile startup capability probe (e.g. on Bale's fork of the Bot
-    # API). Each handler is scoped by an explicit pattern so unrelated
-    # callbacks are never swallowed.
     for handler in get_callback_handlers():
         application.add_handler(handler)
 
-    # Daily settings wizard callbacks are scoped to their own "daily_" prefix.
     application.add_handler(
-        CallbackQueryHandler(
-            daily_settings_callback,
-            pattern=r"^daily_",
-        )
+        CallbackQueryHandler(daily_settings_callback, pattern=r"^daily_")
     )
-
-    # Admin settings callbacks are scoped to their own "aset_" prefix.
     application.add_handler(get_admin_settings_callback_handler())
