@@ -41,9 +41,7 @@ async def _resolve_is_superadmin(
         return False
 
 
-async def _is_superadmin(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> bool:
+async def _is_superadmin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     user = update.effective_user
     return user is not None and user.id in get_settings().admin_user_ids
 
