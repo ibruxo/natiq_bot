@@ -4,7 +4,7 @@ from app.bot.handlers.superadmin import _resolve_is_superadmin
 
 
 class StubChat:
-    """Minimal stub mimicking the Chat model for testing."""
+    """Legacy compatibility stub used only to assert the repository is unused."""
 
     def __init__(self, is_admin: bool) -> None:
         self.is_admin = is_admin
@@ -24,7 +24,6 @@ class StubChatRepository:
 
 def test_resolve_is_superadmin_allows_env_configured_admin_without_db_lookup() -> None:
     repository = StubChatRepository(is_admin=False)
-
     result = asyncio.run(
         _resolve_is_superadmin(
             123,
@@ -32,14 +31,12 @@ def test_resolve_is_superadmin_allows_env_configured_admin_without_db_lookup() -
             chat_repository=repository,
         )
     )
-
     assert result is True
     assert repository.calls == []
 
 
-def test_resolve_is_superadmin_falls_back_to_database_flag() -> None:
+def test_resolve_is_superadmin_does_not_use_legacy_database_admin_flag() -> None:
     repository = StubChatRepository(is_admin=True)
-
     result = asyncio.run(
         _resolve_is_superadmin(
             456,
@@ -47,14 +44,12 @@ def test_resolve_is_superadmin_falls_back_to_database_flag() -> None:
             chat_repository=repository,
         )
     )
-
-    assert result is True
-    assert repository.calls == [456]
+    assert result is False
+    assert repository.calls == []
 
 
 def test_resolve_is_superadmin_denies_when_neither_source_grants_access() -> None:
     repository = StubChatRepository(is_admin=False)
-
     result = asyncio.run(
         _resolve_is_superadmin(
             789,
@@ -62,6 +57,5 @@ def test_resolve_is_superadmin_denies_when_neither_source_grants_access() -> Non
             chat_repository=repository,
         )
     )
-
     assert result is False
-    assert repository.calls == [789]
+    assert repository.calls == []
