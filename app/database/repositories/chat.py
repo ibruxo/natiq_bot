@@ -4,9 +4,10 @@ import logging
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import load_only
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from app.core.config import get_settings, resolve_timezone
 from app.core.constants import ChatType, ContentMode
@@ -26,9 +27,7 @@ class ChatRepository:
         from app.database.models.chat import Chat
 
         async with self._database.session() as session:
-            stmt = select(Chat).where(Chat.chat_id == telegram_id)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
+            return await self._get_by_telegram_id(session, telegram_id)
 
     async def get_or_create(
         self,
@@ -41,14 +40,12 @@ class ChatRepository:
         from app.database.models.chat import Chat
 
         settings = get_settings()
-
         async with self._database.session() as session:
             chat = await self._get_by_telegram_id(session, telegram_id)
-
             if chat is not None:
-                chat.language = language or chat.language
-                await session.commit()
-                await session.refresh(chat)
+                if language and chat.language != language:
+                    chat.language = language
+                    await session.commit()
                 return chat
 
             chat = Chat(
@@ -68,220 +65,142 @@ class ChatRepository:
             logger.info("Created chat record: chat_id=%s", telegram_id)
             return chat
 
-    async def update_preferences(
-        self,
-        telegram_id: int,
-        *,
-        language: str | None = None,
-        daily_ayah: bool | None = None,
-        daily_time: str | None = None,
-        timezone: str | None = None,
-        content_mode: str | None = None,
-        daily_type: str | None = None,
-        delivery_mode: str | None = None,
-    ) -> "Chat | None":
+    async def is_admin_for_chat(self, chat_id: int, user_id: int) -> bool:
+        """Return whether the database contains an admin grant for this chat."""
+        from app.database.models.chat_admin import ChatAdmin
+
+        async with self._database.session() as session:
+            return bool(
+                await session.scalar(
+                    select(ChatAdmin.uuid).where(
+                        ChatAdmin.chat_id == chat_id,
+                        ChatAdmin.admin_telegram_id == user_id,
+                    )
+                )
+            )
+
+    async def update_preferences(self, telegram_id: int, **preferences: object) -> "Chat | None":
+        allowed = {
+            "language", "daily_ayah", "daily_time", "timezone",
+            "content_mode", "daily_type", "delivery_mode",
+        }
+        unknown = set(preferences) - allowed
+        if unknown:
+            raise ValueError(f"Unsupported chat preferences: {sorted(unknown)}")
+
         async with self._database.session() as session:
             chat = await self._get_by_telegram_id(session, telegram_id)
             if chat is None:
                 return None
-
-            if language is not None:
-                chat.language = language
-            if daily_ayah is not None:
-                chat.daily_ayah = daily_ayah
-            if daily_time is not None:
-                chat.daily_time = daily_time
-            if timezone is not None:
-                chat.timezone = timezone
-            if content_mode is not None:
-                chat.content_mode = content_mode
-            if daily_type is not None:
-                chat.daily_type = daily_type
-            if delivery_mode is not None:
-                chat.delivery_mode = delivery_mode
-
-            await session.commit()
-            await session.refresh(chat)
+            changed = False
+            for field, value in preferences.items():
+                if value is not None and getattr(chat, field) != value:
+                    setattr(chat, field, value)
+                    changed = True
+            if changed:
+                await session.commit()
             return chat
 
     async def add_chat_admin(self, chat_id: int, chat_type: str, admin_id: int) -> None:
         from app.database.models.chat_admin import ChatAdmin
 
-        try:
-            async with self._database.session() as session:
-                stmt = select(ChatAdmin).where(
-                    ChatAdmin.chat_id == chat_id,
-                    ChatAdmin.admin_telegram_id == admin_id,
-                )
-                existing = await session.scalar(stmt)
-                if existing is None:
-                    session.add(
-                        ChatAdmin(
-                            chat_id=chat_id,
-                            chat_type=chat_type,
-                            admin_telegram_id=admin_id,
-                        )
-                    )
-                    await session.commit()
-                    logger.info(
-                        "--> Successfully added admin_id=%s for chat_id=%s to chat_admins table",
-                        admin_id,
-                        chat_id,
-                    )
-                else:
-                    logger.debug(
-                        "--> Admin admin_id=%s for chat_id=%s already in chat_admins",
-                        admin_id,
-                        chat_id,
-                    )
-        except Exception as exc:
-            logger.exception("Failed in add_chat_admin: error=%s", exc)
+        async with self._database.session() as session:
+            stmt = insert(ChatAdmin).values(
+                chat_id=chat_id, chat_type=chat_type, admin_telegram_id=admin_id
+            ).on_conflict_do_nothing(constraint="uq_chat_admin_chat_user")
+            await session.execute(stmt)
+            await session.commit()
 
-    async def save_chat_admins(
-        self, chat_id: int, chat_type: str, admin_ids: list[int]
-    ) -> None:
+    async def save_chat_admins(self, chat_id: int, chat_type: str, admin_ids: list[int]) -> None:
         from app.database.models.chat_admin import ChatAdmin
-        from sqlalchemy import delete
 
-        try:
-            async with self._database.session() as session:
+        async with self._database.session() as session:
+            await session.execute(delete(ChatAdmin).where(ChatAdmin.chat_id == chat_id))
+            if admin_ids:
                 await session.execute(
-                    delete(ChatAdmin).where(ChatAdmin.chat_id == chat_id)
+                    insert(ChatAdmin),
+                    [
+                        {"chat_id": chat_id, "chat_type": chat_type, "admin_telegram_id": admin_id}
+                        for admin_id in set(admin_ids)
+                    ],
                 )
-                for admin_id in admin_ids:
-                    session.add(
-                        ChatAdmin(
-                            chat_id=chat_id,
-                            chat_type=chat_type,
-                            admin_telegram_id=admin_id,
-                        )
-                    )
-                await session.commit()
-                logger.info(
-                    "--> Saved %d admins for chat_id=%s into chat_admins table",
-                    len(admin_ids),
-                    chat_id,
-                )
-        except Exception as exc:
-            logger.exception("Failed in save_chat_admins: error=%s", exc)
+            await session.commit()
 
-    async def list_chats_administered_by(self, user_id: int) -> list[Chat]:
+    async def list_chats_administered_by(self, user_id: int) -> list["Chat"]:
         from app.database.models.chat import Chat
         from app.database.models.chat_admin import ChatAdmin
 
         async with self._database.session() as session:
-            stmt = (
+            result = await session.execute(
                 select(Chat)
                 .join(ChatAdmin, Chat.chat_id == ChatAdmin.chat_id)
                 .where(ChatAdmin.admin_telegram_id == user_id)
-                .distinct()
             )
-            result = await session.execute(stmt)
-            return list(result.scalars().all())
+            return list(result.scalars().unique().all())
 
     async def list_group_chats(self) -> list["Chat"]:
         from app.database.models.chat import Chat
-        from app.core.constants import ChatType
 
         async with self._database.session() as session:
-            stmt = select(Chat).where(
-                Chat.chat_type.in_(
-                    [
-                        ChatType.GROUP.value,
-                        ChatType.SUPERGROUP.value,
-                        ChatType.CHANNEL.value,
-                    ]
-                )
+            result = await session.execute(
+                select(Chat).where(Chat.chat_type.in_((
+                    ChatType.GROUP.value, ChatType.SUPERGROUP.value, ChatType.CHANNEL.value
+                )))
             )
-            result = await session.execute(stmt)
             return list(result.scalars().all())
 
     async def list_daily_ayah_enabled(self) -> list["Chat"]:
         from app.database.models.chat import Chat
 
         async with self._database.session() as session:
-            stmt = select(Chat).where(Chat.daily_ayah.is_(True))
-            result = await session.execute(stmt)
-            chats = list(result.scalars().all())
-
-        logger.info("Found %d users with daily_ayah enabled", len(chats))
-        return chats
+            result = await session.execute(select(Chat).where(Chat.daily_ayah.is_(True)))
+            return list(result.scalars().all())
 
     async def should_send_daily_ayah(self, telegram_id: int) -> bool:
         from app.database.models.chat import Chat
 
         async with self._database.session() as session:
-            stmt = (
-                select(Chat)
-                .where(Chat.chat_id == telegram_id)
-                .options(
+            result = await session.execute(
+                select(Chat).where(Chat.chat_id == telegram_id).options(
                     load_only(Chat.daily_ayah, Chat.last_daily_sent_date, Chat.timezone)
                 )
             )
-            result = await session.execute(stmt)
             chat = result.scalar_one_or_none()
-
-        if chat is None or not chat.daily_ayah:
-            return False
-
-        today = self._local_today(chat.timezone)
-        return chat.last_daily_sent_date != today
+        return bool(chat and chat.daily_ayah and chat.last_daily_sent_date != self._local_today(chat.timezone))
 
     async def mark_daily_ayah_sent(self, telegram_id: int) -> None:
+        from app.database.models.chat import Chat
+
         async with self._database.session() as session:
             chat = await self._get_by_telegram_id(session, telegram_id)
-            if chat is None:
-                return
-
-            chat.last_daily_sent_date = self._local_today(chat.timezone)
-            await session.commit()
-            await session.refresh(chat)
+            if chat is not None:
+                chat.last_daily_sent_date = self._local_today(chat.timezone)
+                await session.commit()
 
     async def count_by_type(self) -> dict[str, int]:
         from app.database.models.chat import Chat
 
         async with self._database.session() as session:
-            stmt = select(Chat.chat_type, func.count()).group_by(Chat.chat_type)
-            result = await session.execute(stmt)
-            rows = result.all()
-
+            rows = (await session.execute(select(Chat.chat_type, func.count()).group_by(Chat.chat_type))).all()
         counts = {"private": 0, "group": 0, "supergroup": 0, "channel": 0}
-        for chat_type, count in rows:
-            counts[str(chat_type)] = int(count)
+        counts.update({str(kind): int(count) for kind, count in rows})
         return counts
 
     async def get_send_totals(self) -> dict[str, int]:
         from app.database.models.sent_history import ReadingMode, SentHistory
 
         async with self._database.session() as session:
-            ayah_total = await session.scalar(
-                select(func.count())
-                .select_from(SentHistory)
-                .where(SentHistory.type == ReadingMode.AYAH)
-            )
-            page_total = await session.scalar(
-                select(func.count())
-                .select_from(SentHistory)
-                .where(SentHistory.type == ReadingMode.PAGE)
-            )
-
-        return {
-            "ayahs": int(ayah_total or 0),
-            "pages": int(page_total or 0),
-        }
+            rows = (await session.execute(
+                select(SentHistory.type, func.count()).group_by(SentHistory.type)
+            )).all()
+        return {"ayahs": sum(int(c) for mode, c in rows if mode == ReadingMode.AYAH),
+                "pages": sum(int(c) for mode, c in rows if mode == ReadingMode.PAGE)}
 
     @staticmethod
-    async def _get_by_telegram_id(
-        session: AsyncSession,
-        telegram_id: int,
-    ) -> "Chat | None":
+    async def _get_by_telegram_id(session: AsyncSession, telegram_id: int) -> "Chat | None":
         from app.database.models.chat import Chat
-
-        stmt = select(Chat).where(Chat.chat_id == telegram_id)
-        result = await session.execute(stmt)
-        return result.scalar_one_or_none()
+        return (await session.execute(select(Chat).where(Chat.chat_id == telegram_id))).scalar_one_or_none()
 
     @staticmethod
     def _local_today(timezone_name: str | None) -> date:
-        tz = resolve_timezone(timezone_name)
-        return datetime.now(tz).date()
+        return datetime.now(resolve_timezone(timezone_name)).date()
