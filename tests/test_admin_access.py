@@ -1,61 +1,36 @@
+from __future__ import annotations
+
 import asyncio
+from types import SimpleNamespace
 
-from app.bot.handlers.superadmin import _resolve_is_superadmin
-
-
-class StubChat:
-    """Legacy compatibility stub used only to assert the repository is unused."""
-
-    def __init__(self, is_admin: bool) -> None:
-        self.is_admin = is_admin
+from app.bot.handlers.superadmin import _is_superadmin
 
 
-class StubChatRepository:
-    def __init__(self, *, is_admin: bool) -> None:
-        self._is_admin = is_admin
-        self.calls: list[int] = []
-
-    async def get_by_telegram_id(self, telegram_id: int) -> StubChat | None:
-        self.calls.append(telegram_id)
-        if self._is_admin:
-            return StubChat(is_admin=True)
-        return None
+class TestSettings:
+    admin_user_ids = {123}
 
 
-def test_resolve_is_superadmin_allows_env_configured_admin_without_db_lookup() -> None:
-    repository = StubChatRepository(is_admin=False)
-    result = asyncio.run(
-        _resolve_is_superadmin(
-            123,
-            configured_admin_ids={123},
-            chat_repository=repository,
-        )
+def make_update(user_id: int) -> SimpleNamespace:
+    return SimpleNamespace(effective_user=SimpleNamespace(id=user_id))
+
+
+def test_configured_superadmin_is_allowed(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.bot.handlers.superadmin.get_settings", lambda: TestSettings()
     )
-    assert result is True
-    assert repository.calls == []
+    assert asyncio.run(_is_superadmin(make_update(123), SimpleNamespace())) is True
 
 
-def test_resolve_is_superadmin_does_not_use_legacy_database_admin_flag() -> None:
-    repository = StubChatRepository(is_admin=True)
-    result = asyncio.run(
-        _resolve_is_superadmin(
-            456,
-            configured_admin_ids=set(),
-            chat_repository=repository,
-        )
+def test_unconfigured_user_is_denied(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.bot.handlers.superadmin.get_settings", lambda: TestSettings()
     )
-    assert result is False
-    assert repository.calls == []
+    assert asyncio.run(_is_superadmin(make_update(456), SimpleNamespace())) is False
 
 
-def test_resolve_is_superadmin_denies_when_neither_source_grants_access() -> None:
-    repository = StubChatRepository(is_admin=False)
-    result = asyncio.run(
-        _resolve_is_superadmin(
-            789,
-            configured_admin_ids={111},
-            chat_repository=repository,
-        )
+def test_missing_user_is_denied(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.bot.handlers.superadmin.get_settings", lambda: TestSettings()
     )
-    assert result is False
-    assert repository.calls == []
+    update = SimpleNamespace(effective_user=None)
+    assert asyncio.run(_is_superadmin(update, SimpleNamespace())) is False

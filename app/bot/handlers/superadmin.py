@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import shutil
 import time
-from typing import TYPE_CHECKING, Protocol
 
 import psutil
 from telegram import Update
@@ -14,34 +13,12 @@ from app.core.config import get_settings
 from app.i18n import detect_language, get_message
 from app.ui.keyboards import main_menu_keyboard
 
-if TYPE_CHECKING:
-    from app.database.models.chat import Chat
-
 logger = logging.getLogger(__name__)
 PROCESS_START_TIME = time.time()
 
 
-class SupportsAdminLookup(Protocol):
-    async def get_by_telegram_id(self, telegram_id: int) -> "Chat | None": ...
-
-
-async def _resolve_is_superadmin(
-    telegram_id: int,
-    *,
-    configured_admin_ids: set[int],
-    chat_repository: SupportsAdminLookup,
-) -> bool:
-    if telegram_id in configured_admin_ids:
-        return True
-    try:
-        chat = await chat_repository.get_by_telegram_id(telegram_id)
-        return bool(getattr(chat, "is_admin", False)) if chat is not None else False
-    except Exception:
-        logger.exception("Admin lookup failed for telegram_id=%s", telegram_id)
-        return False
-
-
 async def _is_superadmin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Check global administrator access from immutable runtime configuration."""
     user = update.effective_user
     return user is not None and user.id in get_settings().admin_user_ids
 
