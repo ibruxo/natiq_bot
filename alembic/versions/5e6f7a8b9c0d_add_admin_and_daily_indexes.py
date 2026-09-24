@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 """Add indexes used by admin and daily-delivery queries."""
+=======
+"""Make the chat schema match the current models and add query indexes."""
+>>>>>>> 7f2fd78 (Fs)
 
 from alembic import op
 
