@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import shutil
 import time
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Protocol
 
 import psutil
@@ -29,8 +28,6 @@ class SupportsAdminLookup(Protocol):
 async def _resolve_is_superadmin(telegram_id: int, *, configured_admin_ids: set[int], chat_repository: SupportsAdminLookup) -> bool:
     if telegram_id in configured_admin_ids:
         return True
-    # Legacy database fallback is retained only for compatibility with old callers.
-    # Chat-level authorization is handled through chat_admins by admin_settings.
     try:
         chat = await chat_repository.get_by_telegram_id(telegram_id)
         return bool(getattr(chat, "is_admin", False)) if chat is not None else False
@@ -41,24 +38,7 @@ async def _resolve_is_superadmin(telegram_id: int, *, configured_admin_ids: set[
 
 async def _is_superadmin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     user = update.effective_user
-    if user is None:
-        return False
-    return user.id in get_settings().admin_user_ids
-
-
-async def _get_system_stats(context: ContextTypes.DEFAULT_TYPE) -> str:
-    ram = psutil.virtual_memory()
-    disk = shutil.disk_usage("/")
-    uptime = int(time.time() - PROCESS_START_TIME)
-    counts = {"private": 0, "group": 0, "supergroup": 0, "channel": 0}
-    container = context.application.bot_data.get("container")
-    if container:
-        counts = await container.chat_repository.count_by_type()
-    return (f"🖥 CPU: {psutil.cpu_percent(interval=None)}%\n"
-            f"💾 RAM: {ram.percent}%\n"
-            f"💽 Disk: {(disk.used / disk.total) * 100:.1f}%\n"
-            f"⏱ Uptime: {uptime // 3600}h {(uptime % 3600) // 60}m\n"
-            f"👥 Total chats: {sum(counts.values())}")
+    return user is not None and user.id in get_settings().admin_user_ids
 
 
 async def _reply_admin_denied(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -76,7 +56,7 @@ async def reload_quran_cache(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await _reply_admin_denied(update, context)
         return
     container = context.application.bot_data.get("container")
-    if not container:
+    if container is None:
         await update.message.reply_text("Service temporarily unavailable.", reply_markup=main_menu_keyboard(language))
         return
     success = await container.reload_quran_cache()
@@ -92,19 +72,13 @@ async def admin_settings_entry(update: Update, context: ContextTypes.DEFAULT_TYP
         await _reply_admin_denied(update, context)
         return
     container = context.application.bot_data.get("container")
-    if not container:
+    if container is None:
         await update.message.reply_text("Service temporarily unavailable.", reply_markup=main_menu_keyboard(language))
         return
-    stats = await _get_system_stats(context)
+    stats = f"🖥 CPU: {psutil.cpu_percent(interval=None)}%\n💾 RAM: {psutil.virtual_memory().percent}%\n💽 Disk: {(shutil.disk_usage('/').used / shutil.disk_usage('/').total) * 100:.1f}%\n⏱ Uptime: {int(time.time() - PROCESS_START_TIME) // 60}m"
     totals = await container.sent_history_repository.get_total_sent_counts()
     settings = get_settings()
-    text = get_message("admin_dashboard", language).format(
-        stats=stats, env_info=f"🌐 Platform: {settings.PLATFORM}",
-        bot_api_info=f"📍 Base URL: {settings.BOT_API}",
-        total_ayahs=totals["ayahs"], total_pages=totals["pages"],
-        quran_cache_ready="✅ Ready" if container.quran_cache_ready else "❌ Not loaded",
-        bot_id=context.bot.id, bot_language=settings.BOT_LANGUAGE, api_status="✅",
-    )
+    text = get_message("admin_dashboard", language).format(stats=stats, env_info=f"🌐 Platform: {settings.PLATFORM}", bot_api_info=f"📍 Base URL: {settings.BOT_API}", total_ayahs=totals["ayahs"], total_pages=totals["pages"], quran_cache_ready="✅ Ready" if container.quran_cache_ready else "❌ Not loaded", bot_id=context.bot.id, bot_language=settings.BOT_LANGUAGE, api_status="✅")
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=main_menu_keyboard(language))
 
 
