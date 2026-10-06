@@ -126,9 +126,13 @@ async def track_chat_membership(
                 # Fetch and save admins
                 try:
                     admins = await context.bot.get_chat_administrators(chat.id)
-                    admin_ids = [admin.user.id for admin in admins if not admin.user.is_bot]
+                    admin_ids = [
+                        admin.user.id for admin in admins if not admin.user.is_bot
+                    ]
                     await chat_repo.save_chat_admins(chat.id, chat.type, admin_ids)
-                    logger.info("Saved %d admins for chat_id=%s", len(admin_ids), chat.id)
+                    logger.info(
+                        "Saved %d admins for chat_id=%s", len(admin_ids), chat.id
+                    )
                 except Exception as e:
                     logger.error("Failed to save admins for chat_id=%s: %s", chat.id, e)
 
