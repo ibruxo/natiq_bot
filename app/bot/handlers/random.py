@@ -31,7 +31,7 @@ def format_ayah(ayah: Ayah) -> str:
     parts.append(f"📖 {ayah.text} ﴿{ayah.ayah_number}﴾")
 
     if ayah.translation:
-        parts.append(f"📝 {ayah.translation} ({ayah.ayah_number})")
+        parts.append(f"📝 {ayah.translation}")
 
     parts.append(f"📱 {settings.BOT_USERNAME}")
 
