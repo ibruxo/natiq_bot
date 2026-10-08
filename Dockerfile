@@ -12,10 +12,15 @@ WORKDIR /app
 ARG PIP_INDEX_URL
 ARG PIP_EXTRA_INDEX_URL
 ARG PIP_TRUSTED_HOST
+ARG PIP_TIMEOUT=60
+ARG PIP_RETRIES=5
+
 
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 ENV PIP_EXTRA_INDEX_URL=${PIP_EXTRA_INDEX_URL}
 ENV PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST}
+ENV PIP_TIMEOUT=${PIP_TIMEOUT}
+ENV PIP_RETRIES=${PIP_RETRIES}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -27,7 +32,7 @@ COPY app ./app
 COPY alembic ./alembic
 
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir .
+pip install --no-cache-dir . 
 
 # =====================================================
 # Stage 2: Runtime

@@ -45,6 +45,8 @@ services:
         PIP_INDEX_URL: "${PIP_INDEX_URL:-https://pypi.org/simple}"
         PIP_EXTRA_INDEX_URL: "${PIP_EXTRA_INDEX_URL:-}"
         PIP_TRUSTED_HOST: "${PIP_TRUSTED_HOST:-}"
+        PIP_TIMEOUT: "${PIP_TIMEOUT:-60}"
+        PIP_RETRIES: "${PIP_RETRIES:-5}"
     image: ${BOT_IMAGE:-natiqquran/bot:latest}
     container_name: ${BOT_CONTAINER_NAME:-quran-bot}
     restart: unless-stopped
