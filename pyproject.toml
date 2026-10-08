@@ -7,7 +7,7 @@ name = "natiq-bot"
 version = "0.1.0"
 description = "Telegram Quran Bot with Daily Ayah Scheduling"
 requires-python = ">=3.12"
-authors = [{name = "Bruxo", email = "braxbot+github@protonmail.com"}]
+authors = [{name = "Bruxo", email = "braxbot@protonmail.com"}]
 
 readme = "README.md"
 license = {text = "GPLv3"}
