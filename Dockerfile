@@ -49,7 +49,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser
 
 COPY --from=builder /wheels /wheels
-RUN python -m pip install --no-cache-dir greenlet
 RUN python -m pip install --no-cache-dir --no-index --find-links=/wheels natiq-bot \
     && rm -rf /wheels
 
