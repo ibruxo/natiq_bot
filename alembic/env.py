@@ -30,8 +30,10 @@ def get_sync_database_url() -> str:
         url = url.replace("+asyncpg", "")
 
     if "@postgres:" in url:
-        import os
-        if not os.path.exists("/.dockerenv"):
+        import socket
+        try:
+            socket.getaddrinfo("postgres", 5432)
+        except socket.gaierror:
             from sqlalchemy.engine import make_url
             parsed = make_url(url)
             parsed = parsed.set(host="localhost")
