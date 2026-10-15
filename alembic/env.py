@@ -29,6 +29,14 @@ def get_sync_database_url() -> str:
     if "asyncpg" in url:
         url = url.replace("+asyncpg", "")
 
+    if "@postgres:" in url:
+        import os
+        if not os.path.exists("/.dockerenv"):
+            from sqlalchemy.engine import make_url
+            parsed = make_url(url)
+            parsed = parsed.set(host="localhost")
+            url = str(parsed)
+
     return url
 
 

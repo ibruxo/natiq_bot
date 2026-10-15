@@ -39,6 +39,7 @@ class ChatRepository:
         enable_daily_ayah: bool = True,
     ) -> "Chat":
         from app.database.models.chat import Chat
+        from sqlalchemy.exc import IntegrityError
 
         settings = get_settings()
 
@@ -63,10 +64,17 @@ class ChatRepository:
                 delivery_mode="random",
             )
             session.add(chat)
-            await session.commit()
-            await session.refresh(chat)
-            logger.info("Created chat record: chat_id=%s", telegram_id)
-            return chat
+            try:
+                await session.commit()
+                await session.refresh(chat)
+                logger.info("Created chat record: chat_id=%s", telegram_id)
+                return chat
+            except IntegrityError:
+                await session.rollback()
+                chat = await self._get_by_telegram_id(session, telegram_id)
+                if chat is not None:
+                    return chat
+                raise
 
     async def update_preferences(
         self,
@@ -106,6 +114,7 @@ class ChatRepository:
 
     async def add_chat_admin(self, chat_id: int, chat_type: str, admin_id: int) -> None:
         from app.database.models.chat_admin import ChatAdmin
+        from sqlalchemy.exc import IntegrityError
 
         try:
             async with self._database.session() as session:
@@ -122,12 +131,20 @@ class ChatRepository:
                             admin_telegram_id=admin_id,
                         )
                     )
-                    await session.commit()
-                    logger.info(
-                        "--> Successfully added admin_id=%s for chat_id=%s to chat_admins table",
-                        admin_id,
-                        chat_id,
-                    )
+                    try:
+                        await session.commit()
+                        logger.info(
+                            "--> Successfully added admin_id=%s for chat_id=%s to chat_admins table",
+                            admin_id,
+                            chat_id,
+                        )
+                    except IntegrityError:
+                        await session.rollback()
+                        logger.debug(
+                            "--> Admin admin_id=%s for chat_id=%s already in chat_admins (concurrent insert)",
+                            admin_id,
+                            chat_id,
+                        )
                 else:
                     logger.debug(
                         "--> Admin admin_id=%s for chat_id=%s already in chat_admins",
