@@ -31,10 +31,12 @@ def get_sync_database_url() -> str:
 
     if "@postgres:" in url:
         import socket
+
         try:
             socket.getaddrinfo("postgres", 5432)
         except socket.gaierror:
             from sqlalchemy.engine import make_url
+
             parsed = make_url(url)
             parsed = parsed.set(host="localhost")
             url = str(parsed)
