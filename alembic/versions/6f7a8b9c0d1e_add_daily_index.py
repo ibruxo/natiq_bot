@@ -1,4 +1,3 @@
-
 """Add index used by daily-delivery queries."""
 
 from alembic import op
@@ -23,4 +22,3 @@ def downgrade() -> None:
         "ix_chats_daily_ayah_type_time",
         table_name="chats",
     )
-
