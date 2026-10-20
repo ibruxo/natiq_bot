@@ -53,10 +53,14 @@ class Database:
 
             # If running locally for migration generation, use localhost if "postgres" host fails
             if url.host == "postgres":
-                import os
+                import socket
 
-                if not os.path.exists("/.dockerenv"):
-                    database_url = database_url.replace("@postgres:", "@localhost:")
+                try:
+                    socket.getaddrinfo("postgres", 5432)
+                except socket.gaierror:
+                    parsed_url = make_url(database_url)
+                    parsed_url = parsed_url.set(host="localhost")
+                    database_url = str(parsed_url)
                     logger.info("Running outside Docker, using localhost for DB")
 
         # Create async engine with proper pooling
